@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,14 +12,31 @@
 
 #define FILE_PATH_CAP 2048
 
-#define SIMPLEXPM_ERROR(...) \
+#define SIMPLE_XPM_ERROR(...) \
 	do { \
 		fprintf(stderr, __VA_ARGS__); \
 		fprintf(stderr, " (%s:%d)\n", __FILE__, __LINE__); \
 		exit(EXIT_FAILURE); \
 	} while(0)
 
-// NOTE: This will clobber "string"!
+typedef enum {
+	XPM_MODE_MONO = 0,
+	XPM_MODE_SYMBOLIC,
+	XPM_MODE_GRAYSCALE_4,
+	XPM_MODE_GRAYSCALE,
+	XPM_MODE_COLOR,
+	NUM_XPM_MODES,
+} Xpm_Mode;
+
+Xpm_Mode convert_token_to_mode(char *token) {
+	if (strcmp(token, "m") == 0) return XPM_MODE_MONO;
+	if (strcmp(token, "s") == 0) return XPM_MODE_SYMBOLIC;
+	if (strcmp(token, "g4") == 0) return XPM_MODE_GRAYSCALE_4;
+	if (strcmp(token, "g") == 0) return XPM_MODE_GRAYSCALE;
+	if (strcmp(token, "c") == 0) return XPM_MODE_COLOR;
+	SIMPLE_XPM_ERROR("\"%s\" is not a valid color mode", token);
+}
+
 char *strstrip(char **string) {
 	for (; isspace(**string) && **string != '\0'; ++*string);
 	if (**string == '\0') return *string;
@@ -28,12 +46,13 @@ char *strstrip(char **string) {
 	return *string;
 }
 
+// TODO: Ignore comments
 int get_next_line(char **buffer, FILE *file) {
 	static size_t line_cap = 0;
 	errno = 0;
 	if (getline(buffer, &line_cap, file) == -1) {
 		if (errno != 0)
-			SIMPLEXPM_ERROR("Unable to parse provided file: expected a new line");
+			SIMPLE_XPM_ERROR("Unable to parse provided file: expected a new line");
 		return 0;
 	}
 	return 1;
@@ -42,54 +61,67 @@ int get_next_line(char **buffer, FILE *file) {
 void check_next_token(char **string, char *token) {
 	size_t token_len = strlen(token);
 	if (strncmp(strstrip(string), token, token_len) != 0)
-		SIMPLEXPM_ERROR("Unable to parse provided file: expected token \"%s\"", token);
+		SIMPLE_XPM_ERROR("Unable to parse provided file: expected token \"%s\"", token);
 	*string += token_len;
 }
 
 char *get_next_token(char **string) {
+// printf("string: %s\n", *string);
 	char *result;
-	do
+	do {
 		if ((result = strsep(string, "\t ")) == NULL)
-			SIMPLEXPM_ERROR("Couldn't parse expected next token");
-	while (*result == '\0');
+			SIMPLE_XPM_ERROR("Couldn't parse expected next token");
+	} while (*result == '\0');
+	if (*string == NULL)
+		SIMPLE_XPM_ERROR("Did not expect next token to be a terminal token");
 	if (strlen(result) != strlen(strstrip(&result)))
-		SIMPLEXPM_ERROR("Weird whitespace characters between array tokens");
+		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
 	return result;
 }
 
 bool get_terminal_token(char **string, char **token) {
-	printf("ENTERING TERMINAL FUNCTION\n");
+// printf("ENTERING TERMINAL FUNCTION\n");
 	bool result = true;
 	while (**string == '\t' || **string == ' ') ++*string;
 	*token = *string;
 	while (**string != '\t' && **string != ' ') {
-printf("*string = %s\n", *string);
+// printf("*string = %s\n", *string);
 		if (**string == '"') {
 			*(*string)++ = '\0';
-			// while (**string == '\t' || **string == ' ') ++*string;
 			goto parse_comma;
 		}
 		++*string;
 	}
 	*(*string)++ = '\0';
 	if (*token == *string)
-		SIMPLEXPM_ERROR("Couldn't parse potential last token");
+		SIMPLE_XPM_ERROR("Couldn't parse potential last token");
 	while (**string == '\t' || **string == ' ') ++*string;
 	if (**string != '"') {
 		result = false;
 		goto defer;
 	}
 parse_comma:
-printf("token: %s\nstring (%s) is pointing to: |%c|%d|\n", *token, *string, **string, (unsigned char)**string);
+// printf("token: %s\nstring (%s) is pointing to: |%c|%d|\n", *token, *string, **string, (unsigned char)**string);
 	while (isspace(**string)) ++*string;
 	if (*(*string)++ != ',')
-		SIMPLEXPM_ERROR("Incorrect format of array");
+		SIMPLE_XPM_ERROR("Incorrect format of array");
 	if (strlen(strstrip(string)) != 0)
-		SIMPLEXPM_ERROR("Trailing characters after array element");
+		SIMPLE_XPM_ERROR("Trailing characters after array element");
 defer:
 	if (strlen(*token) != strlen(strstrip(token)))
-		SIMPLEXPM_ERROR("Weird whitespace characters between array tokens");
+		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
 	return result;
+}
+
+size_t convert_token_to_num(char *token, int base) {
+	if (token == NULL)
+		SIMPLE_XPM_ERROR("Expected non-null token to parse");
+	errno = 0;
+	char *end_p;
+	long result = strtol(token, &end_p, base);
+	if (*end_p != '\0' || errno == ERANGE || result < 0)
+		SIMPLE_XPM_ERROR("\"%s\" is not a valid number", token);
+	return (size_t)result;
 }
 
 Image *parse_xpm_file(const char *file_path) {
@@ -110,12 +142,12 @@ Image *parse_xpm_file(const char *file_path) {
 	result = buffer;
 	check_next_token(&result, "static");
 	if (!isspace(*result))
-		SIMPLEXPM_ERROR("Expected token \"static\"");
+		SIMPLE_XPM_ERROR("Expected token \"static\"");
 	check_next_token(&result, "char");
 	check_next_token(&result, "*");
 
 	if (isdigit(strstrip(&result)[0]))
-		SIMPLEXPM_ERROR("Incorrect C variable name");
+		SIMPLE_XPM_ERROR("Incorrect C variable name");
 	for (; strlen(result) != 0 && (isalnum(*result) || *result == '_'); ++result);
 
 	check_next_token(&result, "[");
@@ -127,29 +159,101 @@ Image *parse_xpm_file(const char *file_path) {
 	get_next_line(&buffer, file);
 	result = buffer;
 	check_next_token(&result, "\"");
-	char *width = get_next_token(&result);
-	char *height = get_next_token(&result);
-	char *num_colors = get_next_token(&result);
-	char *chars_per_pixel;
-	char *x_hotspot = NULL;
-	char *y_hotspot = NULL;
-	char *xpm_ext = NULL;
-	if (!get_terminal_token(&result, &chars_per_pixel)) {
+	size_t width = convert_token_to_num(get_next_token(&result), 10),
+	       height = convert_token_to_num(get_next_token(&result), 10),
+	       num_colors = convert_token_to_num(get_next_token(&result), 10);
+	char *chars_per_pixel_token,
+	     *x_hotspot_token = NULL,
+	     *y_hotspot_token = NULL,
+	     *xpm_ext = NULL;
+	if (!get_terminal_token(&result, &chars_per_pixel_token)) {
 		if (!get_terminal_token(&result, &xpm_ext)) {
-			x_hotspot = xpm_ext;
+			x_hotspot_token = xpm_ext;
 			xpm_ext = NULL;
-			if (!get_terminal_token(&result, &y_hotspot)) {
+			if (!get_terminal_token(&result, &y_hotspot_token)) {
 				if (!get_terminal_token(&result, &xpm_ext))
-					SIMPLEXPM_ERROR("Too many arguments for values");
+					SIMPLE_XPM_ERROR("Too many arguments for values");
 				else if (strncmp(xpm_ext, "XPMEXT", strlen("XPMEXT")) != 0)
-					SIMPLEXPM_ERROR("XPMEXT value not set correctly");
+					SIMPLE_XPM_ERROR("XPMEXT value not set correctly");
 			}
 		} else if (strncmp(xpm_ext, "XPMEXT", strlen("XPMEXT")) != 0)
-			SIMPLEXPM_ERROR("Must specify y_hotspot alongside x_hotspot");
+			SIMPLE_XPM_ERROR("Must specify y_hotspot alongside x_hotspot");
+	}
+	size_t chars_per_pixel = convert_token_to_num(chars_per_pixel_token, 10);
+
+	if (width == 0 || height == 0 || num_colors == 0 || chars_per_pixel == 0)
+		SIMPLE_XPM_ERROR("Invalid values token");
+
+	// NOTE: Hotspots are not implemented
+	ssize_t x_hotspot = x_hotspot_token ? convert_token_to_num(x_hotspot_token, 10) : -1;
+	ssize_t y_hotspot = y_hotspot_token ? convert_token_to_num(y_hotspot_token, 10) : -1;
+	
+// printf("width: %lu, height: %lu, ncolors: %lu, cpp: %lu, x_hotspot: %ld, y_hotspot: %ld, xpm_ext: %s\n", width, height, num_colors, chars_per_pixel, x_hotspot, y_hotspot, xpm_ext);
+
+	// TODO: Create global tables from num_colors
+	char **keys = calloc(num_colors, sizeof(*keys));
+	static unsigned int *color_table = NULL;
+	color_table = realloc(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
+	bool possible_modes[NUM_XPM_MODES] = {false};
+
+	for (size_t i = 0; i < num_colors; ++i) {
+		get_next_line(&buffer, file);
+		result = buffer;
+// printf("result: %s\n", result);
+		check_next_token(&result, "\"");
+
+		if (strlen(result) < chars_per_pixel)
+			SIMPLE_XPM_ERROR("Unable to parse color line");
+		keys[i] = result;
+		result += chars_per_pixel;
+		if (*result != '\t' && *result != ' ')
+			SIMPLE_XPM_ERROR("Incorrect whitespace in color line");
+		*result++ = '\0';
+
+		bool is_last_token;
+		do {
+			Xpm_Mode mode = convert_token_to_mode(get_next_token(&result));
+			possible_modes[mode] = true;
+// printf("MODE: %d, num_modes = %d\n", mode, NUM_XPM_MODES);
+			char *color_str;
+			is_last_token = get_terminal_token(&result, &color_str);
+
+			unsigned int color;
+			switch(*color_str) {
+			case '#':;
+				size_t hex_value = convert_token_to_num(++color_str, 16);
+				if (hex_value > 0xffffff)
+					SIMPLE_XPM_ERROR("Hex #%s is not a valid color value", color_str);
+				color = (unsigned int)((hex_value << 8) | 0x000000ff); // Last 8 bits are for alpha value
+				break;
+			case '%':;
+				// TODO: Parse %HSV codes
+				SIMPLE_XPM_ERROR("HSV values not implemented yet");
+			default:;
+				// TODO: Parse colornames
+				// https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart
+				SIMPLE_XPM_ERROR("Colorname values not implemented yet");
+			}
+			color_table[mode * num_colors + i] = color;
+		} while(!is_last_token);
 	}
 
-	printf("width: %s, height: %s, ncolors: %s, cpp: %s, x_hotspot: %s, y_hotspot: %s, xpm_ext: %s\n", width, height, num_colors, chars_per_pixel, x_hotspot, y_hotspot, xpm_ext);
+// printf("[");
+// for (int i = 0; i < NUM_XPM_MODES; ++i) {
+// 	if (possible_modes[i]) {
+// 		printf("%d: [", i);
+// 		for (int j = 0; j < num_colors; ++j) {
+// 			printf("0x%X ", color_table[i * num_colors + j]);
+// 		}
+// 		printf("], \n");
+// 
+// 	}
+// }
+// printf("]");
 
+	for (int i = 0; i < height; ++i) {
+		check_next_token(&result, "\"");
+	}
 	while (get_next_line(&buffer, file)) {
 		result = buffer;
 		// printf("%s", buffer);
