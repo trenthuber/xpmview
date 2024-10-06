@@ -88,7 +88,7 @@ bool get_terminal_token(char **string, char **token) {
 // printf("*string = %s\n", *string);
 		if (**string == '"') {
 			*(*string)++ = '\0';
-			goto parse_comma;
+			goto check_comma;
 		}
 		++*string;
 	}
@@ -100,13 +100,9 @@ bool get_terminal_token(char **string, char **token) {
 		result = false;
 		goto defer;
 	}
-parse_comma:
+check_comma:
 // printf("token: %s\nstring (%s) is pointing to: |%c|%d|\n", *token, *string, **string, (unsigned char)**string);
-	while (isspace(**string)) ++*string;
-	if (*(*string)++ != ',')
-		SIMPLE_XPM_ERROR("Incorrect format of array");
-	if (strlen(strstrip(string)) != 0)
-		SIMPLE_XPM_ERROR("Trailing characters after array element");
+	check_next_token(string, ",");
 defer:
 	if (strlen(*token) != strlen(strstrip(token)))
 		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
@@ -124,7 +120,7 @@ size_t convert_token_to_num(char *token, int base) {
 	return (size_t)result;
 }
 
-Image *parse_xpm_file(const char *file_path) {
+Image parse_xpm_file(const char *file_path) {
 	FILE *file;
 	if ((file = fopen(file_path, "r")) == NULL) {
 		perror("Unable to open provided file");
@@ -165,18 +161,18 @@ Image *parse_xpm_file(const char *file_path) {
 	char *chars_per_pixel_token,
 	     *x_hotspot_token = NULL,
 	     *y_hotspot_token = NULL,
-	     *xpm_ext = NULL;
+	     *xpm_ext_token = NULL;
 	if (!get_terminal_token(&result, &chars_per_pixel_token)) {
-		if (!get_terminal_token(&result, &xpm_ext)) {
-			x_hotspot_token = xpm_ext;
-			xpm_ext = NULL;
+		if (!get_terminal_token(&result, &xpm_ext_token)) {
+			x_hotspot_token = xpm_ext_token;
+			xpm_ext_token = NULL;
 			if (!get_terminal_token(&result, &y_hotspot_token)) {
-				if (!get_terminal_token(&result, &xpm_ext))
+				if (!get_terminal_token(&result, &xpm_ext_token))
 					SIMPLE_XPM_ERROR("Too many arguments for values");
-				else if (strncmp(xpm_ext, "XPMEXT", strlen("XPMEXT")) != 0)
+				else if (strncmp(xpm_ext_token, "XPMEXT", strlen("XPMEXT")) != 0)
 					SIMPLE_XPM_ERROR("XPMEXT value not set correctly");
 			}
-		} else if (strncmp(xpm_ext, "XPMEXT", strlen("XPMEXT")) != 0)
+		} else if (strncmp(xpm_ext_token, "XPMEXT", strlen("XPMEXT")) != 0)
 			SIMPLE_XPM_ERROR("Must specify y_hotspot alongside x_hotspot");
 	}
 	size_t chars_per_pixel = convert_token_to_num(chars_per_pixel_token, 10);
@@ -187,11 +183,13 @@ Image *parse_xpm_file(const char *file_path) {
 	// NOTE: Hotspots are not implemented
 	ssize_t x_hotspot = x_hotspot_token ? convert_token_to_num(x_hotspot_token, 10) : -1;
 	ssize_t y_hotspot = y_hotspot_token ? convert_token_to_num(y_hotspot_token, 10) : -1;
-	
-// printf("width: %lu, height: %lu, ncolors: %lu, cpp: %lu, x_hotspot: %ld, y_hotspot: %ld, xpm_ext: %s\n", width, height, num_colors, chars_per_pixel, x_hotspot, y_hotspot, xpm_ext);
+	bool xpm_ext = xpm_ext_token != NULL;
+
+// printf("width: %lu, height: %lu, ncolors: %lu, cpp: %lu, x_hotspot: %ld, y_hotspot: %ld, xpm_ext_token: %s\n", width, height, num_colors, chars_per_pixel, x_hotspot, y_hotspot, xpm_ext_token);
 
 	// TODO: Create global tables from num_colors
-	char **keys = calloc(num_colors, sizeof(*keys));
+	char *keys = NULL;
+	keys = realloc(keys, num_colors * chars_per_pixel * sizeof(*keys));
 	static unsigned int *color_table = NULL;
 	color_table = realloc(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
 	bool possible_modes[NUM_XPM_MODES] = {false};
@@ -204,7 +202,7 @@ Image *parse_xpm_file(const char *file_path) {
 
 		if (strlen(result) < chars_per_pixel)
 			SIMPLE_XPM_ERROR("Unable to parse color line");
-		keys[i] = result;
+		strncpy(&keys[i * chars_per_pixel], result, chars_per_pixel);
 		result += chars_per_pixel;
 		if (*result != '\t' && *result != ' ')
 			SIMPLE_XPM_ERROR("Incorrect whitespace in color line");
@@ -220,16 +218,21 @@ Image *parse_xpm_file(const char *file_path) {
 
 			unsigned int color;
 			switch(*color_str) {
-			case '#':;
+			case '#':; // RGB
 				size_t hex_value = convert_token_to_num(++color_str, 16);
-				if (hex_value > 0xffffff)
+				if (hex_value> 0xffffff)
 					SIMPLE_XPM_ERROR("Hex #%s is not a valid color value", color_str);
-				color = (unsigned int)((hex_value << 8) | 0x000000ff); // Last 8 bits are for alpha value
+				size_t r = (hex_value & 0x00ff0000) >> (2 * 8);
+				size_t g = (hex_value & 0x0000ff00);
+				size_t b = (hex_value & 0x000000ff) << (2 * 8);
+				size_t a = 0xff000000;
+				color = r | g | b | a;
+				printf("hex_value: %08x\h, color: 0x%08x\n", hex_value, color);
 				break;
-			case '%':;
+			case '%':; // HSV
 				// TODO: Parse %HSV codes
 				SIMPLE_XPM_ERROR("HSV values not implemented yet");
-			default:;
+			default:; // "Colornames"
 				// TODO: Parse colornames
 				// https://en.wikipedia.org/wiki/X11_color_names#Color_name_chart
 				SIMPLE_XPM_ERROR("Colorname values not implemented yet");
@@ -251,20 +254,79 @@ Image *parse_xpm_file(const char *file_path) {
 // }
 // printf("]");
 
+	// TODO: Be able to dynamically change modes
+	Xpm_Mode current_mode = XPM_MODE_COLOR;
+	if (!possible_modes[current_mode])
+		SIMPLE_XPM_ERROR("Current mode not supported");
+
+	// Parse array of pixel values
+	static unsigned int *pixels = NULL;
+	pixels = realloc(pixels, width * height * sizeof(*pixels));
+	char *temp = calloc(chars_per_pixel + 1, sizeof(*temp));
 	for (int i = 0; i < height; ++i) {
+		get_next_line(&buffer, file);
+		result = buffer;
 		check_next_token(&result, "\"");
+		if (strlen(result) < width * chars_per_pixel + strlen("\","))
+			SIMPLE_XPM_ERROR("String in pixels section is formatted improperly");
+		for (int j = 0; j < width; ++j) {
+			for (int k = 0; k < chars_per_pixel; ++k) {
+				temp[k] = *result++;
+			}
+			for (int l = 0; l < num_colors; ++l) {
+				if (strncmp(&keys[l * chars_per_pixel], temp, chars_per_pixel) == 0) {
+					pixels[width * i + j] = color_table[current_mode * num_colors + l];
+// printf("%X, ", pixels[width * i + j]);
+				}
+			}
+		}
+		if (*result++ != '"')
+			SIMPLE_XPM_ERROR("Pixels section is not formatted correctly");
+		check_next_token(&result, ",");
+// printf("\n");
 	}
+	free(temp); // << TODO: Make sure to free all the other variables at some point
+
+	if (xpm_ext) {
+		// TODO: Parse extensions
+	}
+
+	get_next_line(&buffer, file);
+	result = buffer;
+	check_next_token(&result, "}");
+	check_next_token(&result, ";");
+	if (*strstrip(&result) != '\0')
+		SIMPLE_XPM_ERROR("File can't have elements after array declaration");
 	while (get_next_line(&buffer, file)) {
 		result = buffer;
-		// printf("%s", buffer);
+		if (*strstrip(&result) != '\0')
+			SIMPLE_XPM_ERROR("File can't have elements after array declaration");
 	}
+
 	fclose(file);
-	return NULL;
+
+	// Create Raylib Image object
+	// PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,      // 32 bpp
+// typedef struct Image {
+//     void *data;             // Image raw data
+//     int width;              // Image base width
+//     int height;             // Image base height
+//     int mipmaps;            // Mipmap levels, 1 by default
+//     int format;             // Data format (PixelFormat type)
+// } Image;
+
+	return (Image){
+		.data = pixels,
+		.width = width,
+		.height = height,
+		.mipmaps = 1,
+		.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+	};
 }
 
 int main(int argc, char **argv) {
 	char file_path[FILE_PATH_CAP] = {0};
-	Image *image = NULL;
+	Image image = {0};
 
 	// Check if a file was offered on the command line
 	if (argc >= 2) {
@@ -272,23 +334,39 @@ int main(int argc, char **argv) {
 		image = parse_xpm_file(file_path);
 	}
 
-	InitWindow(800, 600, "Hello, Raylib!");
+	int screenWidth = 800;
+	int screenHeight = 600;
+	SetTraceLogLevel(LOG_WARNING);
+	InitWindow(screenWidth, screenHeight, "Hello, Raylib!");
 	SetTargetFPS(60);
 	while (!WindowShouldClose()) {
 		if (IsFileDropped()) {
 			FilePathList file_paths = LoadDroppedFiles();
 			strncpy(file_path, file_paths.paths[0], FILE_PATH_CAP);
-			image = parse_xpm_file(file_path);
 			UnloadDroppedFiles(file_paths);
+			image = parse_xpm_file(file_path);
+			// for (int i = 0; i < image.height; ++i) {
+			// 	for (int j = 0; j < image.width; ++j) {
+			// 		printf("0x%08x, ", ((unsigned int *)image.data)[j * image.width + i]);
+			// 	}
+			// 	printf("\n");
+			// }
 		}
 
 		BeginDrawing();
-		ClearBackground(BLACK);
+		ClearBackground(RAYWHITE);
 
-		if (image)
-			;// TODO: display file_pixels
-		else
+		if (image.width > 0 && image.height > 0) {
+			// TODO: Need to debug the array of pixels??
+			
+			Texture2D texture = LoadTextureFromImage(image);
+            DrawTexture(texture, screenWidth / 2 - texture.width / 2, screenHeight / 2 - texture.height / 2, WHITE);
+		} else if (image.width == -1 && image.height == -1) {
+			DrawText("Couldn't parse .xpm file provided", GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
+			// Use image.data as a string to print the error message
+		} else {
 			DrawText("Drag and drop .xpm files here", GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
+		}
 
 		EndDrawing();
 	}
