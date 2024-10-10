@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <limits.h>
+#include <setjmp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,11 +13,41 @@
 
 #define FILE_PATH_CAP 2048
 
+FILE *file;
+char *line_buffer;
+char *keys;
+unsigned int *color_table;
+unsigned int *pixels;
+
+#define SIMPLE_XPM_MALLOC(p, size) \
+	do { \
+		p = malloc(size); \
+		if (p == NULL) { \
+			fprintf(stderr, "simplexpm: OUT OF MEMORY (buy more RAM?)"); \
+			exit(EXIT_FAILURE); \
+		} \
+		memset(p, 0, size); \
+	} while (0)
+
+#define SIMPLE_XPM_FREE(p) \
+	do { \
+		if (p) free(p); \
+		p = NULL; \
+	} while (0)
+
+#define ERROR_MESSAGE_CAP 2048
+char error_message[ERROR_MESSAGE_CAP] = "Drag and drop .xpm files here";
+jmp_buf env;
+
 #define SIMPLE_XPM_ERROR(...) \
 	do { \
-		fprintf(stderr, __VA_ARGS__); \
-		fprintf(stderr, " (%s:%d)\n", __FILE__, __LINE__); \
-		exit(EXIT_FAILURE); \
+		if (file) fclose(file); \
+		SIMPLE_XPM_FREE(line_buffer); \
+		SIMPLE_XPM_FREE(keys); \
+		SIMPLE_XPM_FREE(color_table); \
+		SIMPLE_XPM_FREE(pixels); \
+		snprintf(error_message, ERROR_MESSAGE_CAP, __VA_ARGS__); \
+		siglongjmp(env, 1); \
 	} while(0)
 
 typedef enum {
@@ -66,7 +97,6 @@ void check_next_token(char **string, char *token) {
 }
 
 char *get_next_token(char **string) {
-// printf("string: %s\n", *string);
 	char *result;
 	do {
 		if ((result = strsep(string, "\t ")) == NULL)
@@ -80,12 +110,10 @@ char *get_next_token(char **string) {
 }
 
 bool get_terminal_token(char **string, char **token) {
-// printf("ENTERING TERMINAL FUNCTION\n");
 	bool result = true;
 	while (**string == '\t' || **string == ' ') ++*string;
 	*token = *string;
 	while (**string != '\t' && **string != ' ') {
-// printf("*string = %s\n", *string);
 		if (**string == '"') {
 			*(*string)++ = '\0';
 			goto check_comma;
@@ -100,9 +128,10 @@ bool get_terminal_token(char **string, char **token) {
 		result = false;
 		goto defer;
 	}
+
 check_comma:
-// printf("token: %s\nstring (%s) is pointing to: |%c|%d|\n", *token, *string, **string, (unsigned char)**string);
 	check_next_token(string, ",");
+
 defer:
 	if (strlen(*token) != strlen(strstrip(token)))
 		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
@@ -120,54 +149,53 @@ size_t convert_token_to_num(char *token, int base) {
 	return (size_t)result;
 }
 
-Image parse_xpm_file(const char *file_path) {
-	FILE *file;
-	if ((file = fopen(file_path, "r")) == NULL) {
-		perror("Unable to open provided file");
-		exit(EXIT_FAILURE);
+bool parse_xpm_file(Image *image, const char *file_path) {
+	switch (sigsetjmp(env, 0)) {
+	case 1:
+		return false;
 	}
-	char *buffer = NULL, *result;
 
-	// TODO: Exit gracefully
+	if ((file = fopen(file_path, "r")) == NULL)
+		SIMPLE_XPM_ERROR("Unable to open provided file");
 
-	get_next_line(&buffer, file);
-	result = buffer;
-	check_next_token(&result, "/* XPM */");
+	get_next_line(&line_buffer, file);
+	char *line_buffer_p = line_buffer;
+	check_next_token(&line_buffer_p, "/* XPM */");
 
-	get_next_line(&buffer, file);
-	result = buffer;
-	check_next_token(&result, "static");
-	if (!isspace(*result))
+	get_next_line(&line_buffer, file);
+	line_buffer_p = line_buffer;
+	check_next_token(&line_buffer_p, "static");
+	if (!isspace(*line_buffer_p))
 		SIMPLE_XPM_ERROR("Expected token \"static\"");
-	check_next_token(&result, "char");
-	check_next_token(&result, "*");
+	check_next_token(&line_buffer_p, "char");
+	check_next_token(&line_buffer_p, "*");
 
-	if (isdigit(strstrip(&result)[0]))
+	if (isdigit(strstrip(&line_buffer_p)[0]))
 		SIMPLE_XPM_ERROR("Incorrect C variable name");
-	for (; strlen(result) != 0 && (isalnum(*result) || *result == '_'); ++result);
+	for (; strlen(line_buffer_p) != 0 && (isalnum(*line_buffer_p) || *line_buffer_p == '_'); ++line_buffer_p);
 
-	check_next_token(&result, "[");
-	check_next_token(&result, "]");
-	check_next_token(&result, "=");
-	check_next_token(&result, "{");
+	check_next_token(&line_buffer_p, "[");
+	check_next_token(&line_buffer_p, "]");
+	check_next_token(&line_buffer_p, "=");
+	check_next_token(&line_buffer_p, "{");
 
 	// Parse values
-	get_next_line(&buffer, file);
-	result = buffer;
-	check_next_token(&result, "\"");
-	size_t width = convert_token_to_num(get_next_token(&result), 10),
-	       height = convert_token_to_num(get_next_token(&result), 10),
-	       num_colors = convert_token_to_num(get_next_token(&result), 10);
+	get_next_line(&line_buffer, file);
+	line_buffer_p = line_buffer;
+	check_next_token(&line_buffer_p, "\"");
+	size_t width = convert_token_to_num(get_next_token(&line_buffer_p), 10),
+	       height = convert_token_to_num(get_next_token(&line_buffer_p), 10),
+	       num_colors = convert_token_to_num(get_next_token(&line_buffer_p), 10);
 	char *chars_per_pixel_token,
 	     *x_hotspot_token = NULL,
 	     *y_hotspot_token = NULL,
 	     *xpm_ext_token = NULL;
-	if (!get_terminal_token(&result, &chars_per_pixel_token)) {
-		if (!get_terminal_token(&result, &xpm_ext_token)) {
+	if (!get_terminal_token(&line_buffer_p, &chars_per_pixel_token)) {
+		if (!get_terminal_token(&line_buffer_p, &xpm_ext_token)) {
 			x_hotspot_token = xpm_ext_token;
 			xpm_ext_token = NULL;
-			if (!get_terminal_token(&result, &y_hotspot_token)) {
-				if (!get_terminal_token(&result, &xpm_ext_token))
+			if (!get_terminal_token(&line_buffer_p, &y_hotspot_token)) {
+				if (!get_terminal_token(&line_buffer_p, &xpm_ext_token))
 					SIMPLE_XPM_ERROR("Too many arguments for values");
 				else if (strncmp(xpm_ext_token, "XPMEXT", strlen("XPMEXT")) != 0)
 					SIMPLE_XPM_ERROR("XPMEXT value not set correctly");
@@ -183,33 +211,37 @@ Image parse_xpm_file(const char *file_path) {
 	// TODO: Hotspots are not implemented
 	ssize_t x_hotspot = x_hotspot_token ? convert_token_to_num(x_hotspot_token, 10) : -1;
 	ssize_t y_hotspot = y_hotspot_token ? convert_token_to_num(y_hotspot_token, 10) : -1;
+	(void)x_hotspot;
+	(void)y_hotspot;
+
+	// TODO: Extensions are not implemented
 	bool xpm_ext = xpm_ext_token != NULL;
 
-	static char *keys = NULL;
-	keys = realloc(keys, num_colors * chars_per_pixel * sizeof(*keys));
-	static unsigned int *color_table = NULL;
-	color_table = realloc(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
+	// Parse color codes
+	SIMPLE_XPM_FREE(keys);
+	SIMPLE_XPM_MALLOC(keys, num_colors * chars_per_pixel * sizeof(*keys));
+	SIMPLE_XPM_FREE(color_table);
+	SIMPLE_XPM_MALLOC(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
 	bool possible_modes[NUM_XPM_MODES] = {false};
-
 	for (size_t i = 0; i < num_colors; ++i) {
-		get_next_line(&buffer, file);
-		result = buffer;
-		check_next_token(&result, "\"");
+		get_next_line(&line_buffer, file);
+		line_buffer_p = line_buffer;
+		check_next_token(&line_buffer_p, "\"");
 
-		if (strlen(result) < chars_per_pixel)
+		if (strlen(line_buffer_p) < chars_per_pixel)
 			SIMPLE_XPM_ERROR("Unable to parse color line");
-		strncpy(&keys[i * chars_per_pixel], result, chars_per_pixel);
-		result += chars_per_pixel;
-		if (*result != '\t' && *result != ' ')
+		strncpy(&keys[i * chars_per_pixel], line_buffer_p, chars_per_pixel);
+		line_buffer_p += chars_per_pixel;
+		if (*line_buffer_p != '\t' && *line_buffer_p != ' ')
 			SIMPLE_XPM_ERROR("Incorrect whitespace in color line");
-		*result++ = '\0';
+		*line_buffer_p++ = '\0';
 
 		bool is_last_token;
 		do {
-			Xpm_Mode mode = convert_token_to_mode(get_next_token(&result));
+			Xpm_Mode mode = convert_token_to_mode(get_next_token(&line_buffer_p));
 			possible_modes[mode] = true;
 			char *color_str;
-			is_last_token = get_terminal_token(&result, &color_str);
+			is_last_token = get_terminal_token(&line_buffer_p, &color_str);
 
 			unsigned int color;
 			switch(*color_str) {
@@ -241,82 +273,75 @@ Image parse_xpm_file(const char *file_path) {
 		SIMPLE_XPM_ERROR("Current mode not supported");
 
 	// Parse array of pixel values
-	static unsigned int *pixels = NULL;
-	pixels = realloc(pixels, width * height * sizeof(*pixels));
-	char *temp = calloc(chars_per_pixel + 1, sizeof(*temp));
-	for (int i = 0; i < height; ++i) {
-		get_next_line(&buffer, file);
-		result = buffer;
-		check_next_token(&result, "\"");
-		if (strlen(result) < width * chars_per_pixel + strlen("\","))
+	SIMPLE_XPM_FREE(pixels); // Need to have the pixels still exist even when this function exits
+	SIMPLE_XPM_MALLOC(pixels, width * height * sizeof(*pixels));
+	char *key_buffer;
+	SIMPLE_XPM_MALLOC(key_buffer, (chars_per_pixel + 1) * sizeof(*key_buffer));
+	for (size_t i = 0; i < height; ++i) {
+		get_next_line(&line_buffer, file);
+		line_buffer_p = line_buffer;
+		check_next_token(&line_buffer_p, "\"");
+		if (strlen(line_buffer_p) < width * chars_per_pixel + strlen("\","))
 			SIMPLE_XPM_ERROR("String in pixels section is formatted improperly");
-		for (int j = 0; j < width; ++j) {
-			for (int k = 0; k < chars_per_pixel; ++k) {
-				temp[k] = *result++;
+		for (size_t j = 0; j < width; ++j) {
+			for (size_t k = 0; k < chars_per_pixel; ++k) {
+				key_buffer[k] = *line_buffer_p++;
 			}
-			for (int l = 0; l < num_colors; ++l) {
-				if (strncmp(&keys[l * chars_per_pixel], temp, chars_per_pixel) == 0) {
+			for (size_t l = 0; l < num_colors; ++l) {
+				if (strncmp(&keys[l * chars_per_pixel], key_buffer, chars_per_pixel) == 0) {
 					pixels[width * i + j] = color_table[current_mode * num_colors + l];
 				}
 			}
 		}
-		if (*result++ != '"')
+		if (*line_buffer_p++ != '"')
 			SIMPLE_XPM_ERROR("Pixels section is not formatted correctly");
-		check_next_token(&result, ",");
+		check_next_token(&line_buffer_p, ",");
 	}
-	free(temp);
+	SIMPLE_XPM_FREE(key_buffer);
+	SIMPLE_XPM_FREE(keys);
+	SIMPLE_XPM_FREE(color_table);
 
+	// TODO: Extensions are not implemented
 	if (xpm_ext) {
-		// TODO: Parse extensions
+		printf("Parsing XPM extensions\n");
 	}
 
-	get_next_line(&buffer, file);
-	result = buffer;
-	check_next_token(&result, "}");
-	check_next_token(&result, ";");
-	if (*strstrip(&result) != '\0')
+	get_next_line(&line_buffer, file);
+	line_buffer_p = line_buffer;
+	check_next_token(&line_buffer_p, "}");
+	check_next_token(&line_buffer_p, ";");
+	if (*strstrip(&line_buffer_p) != '\0')
 		SIMPLE_XPM_ERROR("File can't have elements after array declaration");
-	while (get_next_line(&buffer, file)) {
-		result = buffer;
-		if (*strstrip(&result) != '\0')
+	while (get_next_line(&line_buffer, file)) {
+		line_buffer_p = line_buffer;
+		if (*strstrip(&line_buffer_p) != '\0')
 			SIMPLE_XPM_ERROR("File can't have elements after array declaration");
 	}
-
 	fclose(file);
+	SIMPLE_XPM_FREE(line_buffer);
 
-	// Create Raylib Image object
-	// PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,      // 32 bpp
-// typedef struct Image {
-//     void *data;             // Image raw data
-//     int width;              // Image base width
-//     int height;             // Image base height
-//     int mipmaps;            // Mipmap levels, 1 by default
-//     int format;             // Data format (PixelFormat type)
-// } Image;
-
-	return (Image){
+	*image = (Image){
 		.data = pixels,
 		.width = width,
 		.height = height,
 		.mipmaps = 1,
 		.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
 	};
+	return true;
 }
 
 int main(int argc, char **argv) {
 	char file_path[FILE_PATH_CAP] = {0};
 	Texture2D texture = {0};
 	bool have_texture = false;
-	char *msg = "Drag and drop .xpm files here";
 
-	// Check if a file was offered on the command line
+	// Check if a file was given on the command line
 	if (argc >= 2) {
 		strncpy(file_path, argv[2], FILE_PATH_CAP);
-		Image image = parse_xpm_file(file_path);
-		if (image.width == -1) {
+		Image image = {0};
+		if (!parse_xpm_file(&image, file_path))
 			have_texture = false;
-			msg = (char *)image.data;
-		} else {
+		else {
 			UnloadTexture(texture);
 			texture = LoadTextureFromImage(image);
 			have_texture = true;
@@ -333,11 +358,10 @@ int main(int argc, char **argv) {
 			FilePathList file_paths = LoadDroppedFiles();
 			strncpy(file_path, file_paths.paths[0], FILE_PATH_CAP);
 			UnloadDroppedFiles(file_paths);
-			Image image = parse_xpm_file(file_path);
-			if (image.width == -1) {
+			Image image = {0};
+			if (!parse_xpm_file(&image, file_path))
 				have_texture = false;
-				msg = (char *)image.data;
-			} else {
+			else {
 				UnloadTexture(texture);
 				texture = LoadTextureFromImage(image);
 				have_texture = true;
@@ -349,7 +373,7 @@ int main(int argc, char **argv) {
 		if (have_texture) {
             DrawTexture(texture, screenWidth / 2 - texture.width / 2, screenHeight / 2 - texture.height / 2, WHITE);
 		} else {
-			DrawText(msg, GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
+			DrawText(error_message, GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
 		}
 		EndDrawing();
 	}
