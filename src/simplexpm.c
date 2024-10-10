@@ -180,15 +180,12 @@ Image parse_xpm_file(const char *file_path) {
 	if (width == 0 || height == 0 || num_colors == 0 || chars_per_pixel == 0)
 		SIMPLE_XPM_ERROR("Invalid values token");
 
-	// NOTE: Hotspots are not implemented
+	// TODO: Hotspots are not implemented
 	ssize_t x_hotspot = x_hotspot_token ? convert_token_to_num(x_hotspot_token, 10) : -1;
 	ssize_t y_hotspot = y_hotspot_token ? convert_token_to_num(y_hotspot_token, 10) : -1;
 	bool xpm_ext = xpm_ext_token != NULL;
 
-// printf("width: %lu, height: %lu, ncolors: %lu, cpp: %lu, x_hotspot: %ld, y_hotspot: %ld, xpm_ext_token: %s\n", width, height, num_colors, chars_per_pixel, x_hotspot, y_hotspot, xpm_ext_token);
-
-	// TODO: Create global tables from num_colors
-	char *keys = NULL;
+	static char *keys = NULL;
 	keys = realloc(keys, num_colors * chars_per_pixel * sizeof(*keys));
 	static unsigned int *color_table = NULL;
 	color_table = realloc(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
@@ -197,7 +194,6 @@ Image parse_xpm_file(const char *file_path) {
 	for (size_t i = 0; i < num_colors; ++i) {
 		get_next_line(&buffer, file);
 		result = buffer;
-// printf("result: %s\n", result);
 		check_next_token(&result, "\"");
 
 		if (strlen(result) < chars_per_pixel)
@@ -212,7 +208,6 @@ Image parse_xpm_file(const char *file_path) {
 		do {
 			Xpm_Mode mode = convert_token_to_mode(get_next_token(&result));
 			possible_modes[mode] = true;
-// printf("MODE: %d, num_modes = %d\n", mode, NUM_XPM_MODES);
 			char *color_str;
 			is_last_token = get_terminal_token(&result, &color_str);
 
@@ -227,7 +222,6 @@ Image parse_xpm_file(const char *file_path) {
 				size_t b = (hex_value & 0x000000ff) << (2 * 8);
 				size_t a = 0xff000000;
 				color = r | g | b | a;
-				printf("hex_value: %08x\h, color: 0x%08x\n", hex_value, color);
 				break;
 			case '%':; // HSV
 				// TODO: Parse %HSV codes
@@ -240,19 +234,6 @@ Image parse_xpm_file(const char *file_path) {
 			color_table[mode * num_colors + i] = color;
 		} while(!is_last_token);
 	}
-
-// printf("[");
-// for (int i = 0; i < NUM_XPM_MODES; ++i) {
-// 	if (possible_modes[i]) {
-// 		printf("%d: [", i);
-// 		for (int j = 0; j < num_colors; ++j) {
-// 			printf("0x%X ", color_table[i * num_colors + j]);
-// 		}
-// 		printf("], \n");
-// 
-// 	}
-// }
-// printf("]");
 
 	// TODO: Be able to dynamically change modes
 	Xpm_Mode current_mode = XPM_MODE_COLOR;
@@ -276,16 +257,14 @@ Image parse_xpm_file(const char *file_path) {
 			for (int l = 0; l < num_colors; ++l) {
 				if (strncmp(&keys[l * chars_per_pixel], temp, chars_per_pixel) == 0) {
 					pixels[width * i + j] = color_table[current_mode * num_colors + l];
-// printf("%X, ", pixels[width * i + j]);
 				}
 			}
 		}
 		if (*result++ != '"')
 			SIMPLE_XPM_ERROR("Pixels section is not formatted correctly");
 		check_next_token(&result, ",");
-// printf("\n");
 	}
-	free(temp); // << TODO: Make sure to free all the other variables at some point
+	free(temp);
 
 	if (xpm_ext) {
 		// TODO: Parse extensions
@@ -326,49 +305,57 @@ Image parse_xpm_file(const char *file_path) {
 
 int main(int argc, char **argv) {
 	char file_path[FILE_PATH_CAP] = {0};
-	Image image = {0};
+	Texture2D texture = {0};
+	bool have_texture = false;
+	char *msg = "Drag and drop .xpm files here";
 
 	// Check if a file was offered on the command line
 	if (argc >= 2) {
 		strncpy(file_path, argv[2], FILE_PATH_CAP);
-		image = parse_xpm_file(file_path);
+		Image image = parse_xpm_file(file_path);
+		if (image.width == -1) {
+			have_texture = false;
+			msg = (char *)image.data;
+		} else {
+			UnloadTexture(texture);
+			texture = LoadTextureFromImage(image);
+			have_texture = true;
+		}
 	}
 
 	int screenWidth = 800;
 	int screenHeight = 600;
 	SetTraceLogLevel(LOG_WARNING);
-	InitWindow(screenWidth, screenHeight, "Hello, Raylib!");
-	SetTargetFPS(60);
+	InitWindow(screenWidth, screenHeight, "simplexpm");
+
 	while (!WindowShouldClose()) {
 		if (IsFileDropped()) {
 			FilePathList file_paths = LoadDroppedFiles();
 			strncpy(file_path, file_paths.paths[0], FILE_PATH_CAP);
 			UnloadDroppedFiles(file_paths);
-			image = parse_xpm_file(file_path);
-			// for (int i = 0; i < image.height; ++i) {
-			// 	for (int j = 0; j < image.width; ++j) {
-			// 		printf("0x%08x, ", ((unsigned int *)image.data)[j * image.width + i]);
-			// 	}
-			// 	printf("\n");
-			// }
+			Image image = parse_xpm_file(file_path);
+			if (image.width == -1) {
+				have_texture = false;
+				msg = (char *)image.data;
+			} else {
+				UnloadTexture(texture);
+				texture = LoadTextureFromImage(image);
+				have_texture = true;
+			}
 		}
 
 		BeginDrawing();
 		ClearBackground(RAYWHITE);
-
-		if (image.width > 0 && image.height > 0) {
-			// TODO: Need to debug the array of pixels??
-			
-			Texture2D texture = LoadTextureFromImage(image);
+		if (have_texture) {
             DrawTexture(texture, screenWidth / 2 - texture.width / 2, screenHeight / 2 - texture.height / 2, WHITE);
-		} else if (image.width == -1 && image.height == -1) {
-			DrawText("Couldn't parse .xpm file provided", GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
-			// Use image.data as a string to print the error message
 		} else {
-			DrawText("Drag and drop .xpm files here", GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
+			DrawText(msg, GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
 		}
-
 		EndDrawing();
 	}
+
+	UnloadTexture(texture);
+	CloseWindow();
+
 	return 0;
 }
