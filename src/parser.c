@@ -1,153 +1,19 @@
 #include <ctype.h>
-#include <limits.h>
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <sys/errno.h>
 
 #include "raylib.h"
-
-#include "../external/stb/stb_c_lexer.h"
-
-#define FILE_PATH_CAP 2048
+#include "tokenizer.h"
+#include "utils.h"
+#include "xpm_mode.h"
 
 FILE *file;
 char *line_buffer;
 char *keys;
 unsigned int *color_table;
 unsigned int *pixels;
-
-#define SIMPLE_XPM_MALLOC(p, size) \
-	do { \
-		p = malloc(size); \
-		if (p == NULL) { \
-			fprintf(stderr, "simplexpm: OUT OF MEMORY (buy more RAM?)"); \
-			exit(EXIT_FAILURE); \
-		} \
-		memset(p, 0, size); \
-	} while (0)
-
-#define SIMPLE_XPM_FREE(p) \
-	do { \
-		if (p) free(p); \
-		p = NULL; \
-	} while (0)
-
-#define ERROR_MESSAGE_CAP 2048
-char error_message[ERROR_MESSAGE_CAP] = "Drag and drop .xpm files here";
-jmp_buf env;
-
-#define SIMPLE_XPM_ERROR(...) \
-	do { \
-		if (file) fclose(file); \
-		SIMPLE_XPM_FREE(line_buffer); \
-		SIMPLE_XPM_FREE(keys); \
-		SIMPLE_XPM_FREE(color_table); \
-		SIMPLE_XPM_FREE(pixels); \
-		snprintf(error_message, ERROR_MESSAGE_CAP, __VA_ARGS__); \
-		siglongjmp(env, 1); \
-	} while(0)
-
-typedef enum {
-	XPM_MODE_MONO = 0,
-	XPM_MODE_SYMBOLIC,
-	XPM_MODE_GRAYSCALE_4,
-	XPM_MODE_GRAYSCALE,
-	XPM_MODE_COLOR,
-	NUM_XPM_MODES,
-} Xpm_Mode;
-
-Xpm_Mode convert_token_to_mode(char *token) {
-	if (strcmp(token, "m") == 0) return XPM_MODE_MONO;
-	if (strcmp(token, "s") == 0) return XPM_MODE_SYMBOLIC;
-	if (strcmp(token, "g4") == 0) return XPM_MODE_GRAYSCALE_4;
-	if (strcmp(token, "g") == 0) return XPM_MODE_GRAYSCALE;
-	if (strcmp(token, "c") == 0) return XPM_MODE_COLOR;
-	SIMPLE_XPM_ERROR("\"%s\" is not a valid color mode", token);
-}
-
-char *strstrip(char **string) {
-	for (; isspace(**string) && **string != '\0'; ++*string);
-	if (**string == '\0') return *string;
-	char *end;
-	for (end = *string + strlen(*string); isspace(*(end - 1)); --end);
-	*end = '\0';
-	return *string;
-}
-
-// TODO: Ignore comments
-int get_next_line(char **buffer, FILE *file) {
-	static size_t line_cap = 0;
-	errno = 0;
-	if (getline(buffer, &line_cap, file) == -1) {
-		if (errno != 0)
-			SIMPLE_XPM_ERROR("Unable to parse provided file: expected a new line");
-		return 0;
-	}
-	return 1;
-}
-
-void check_next_token(char **string, char *token) {
-	size_t token_len = strlen(token);
-	if (strncmp(strstrip(string), token, token_len) != 0)
-		SIMPLE_XPM_ERROR("Unable to parse provided file: expected token \"%s\"", token);
-	*string += token_len;
-}
-
-char *get_next_token(char **string) {
-	char *result;
-	do {
-		if ((result = strsep(string, "\t ")) == NULL)
-			SIMPLE_XPM_ERROR("Couldn't parse expected next token");
-	} while (*result == '\0');
-	if (*string == NULL)
-		SIMPLE_XPM_ERROR("Did not expect next token to be a terminal token");
-	if (strlen(result) != strlen(strstrip(&result)))
-		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
-	return result;
-}
-
-bool get_terminal_token(char **string, char **token) {
-	bool result = true;
-	while (**string == '\t' || **string == ' ') ++*string;
-	*token = *string;
-	while (**string != '\t' && **string != ' ') {
-		if (**string == '"') {
-			*(*string)++ = '\0';
-			goto check_comma;
-		}
-		++*string;
-	}
-	*(*string)++ = '\0';
-	if (*token == *string)
-		SIMPLE_XPM_ERROR("Couldn't parse potential last token");
-	while (**string == '\t' || **string == ' ') ++*string;
-	if (**string != '"') {
-		result = false;
-		goto defer;
-	}
-
-check_comma:
-	check_next_token(string, ",");
-
-defer:
-	if (strlen(*token) != strlen(strstrip(token)))
-		SIMPLE_XPM_ERROR("Weird whitespace characters between array tokens");
-	return result;
-}
-
-size_t convert_token_to_num(char *token, int base) {
-	if (token == NULL)
-		SIMPLE_XPM_ERROR("Expected non-null token to parse");
-	errno = 0;
-	char *end_p;
-	long result = strtol(token, &end_p, base);
-	if (*end_p != '\0' || errno == ERANGE || result < 0)
-		SIMPLE_XPM_ERROR("\"%s\" is not a valid number", token);
-	return (size_t)result;
-}
 
 bool parse_xpm_file(Image *image, const char *file_path) {
 	switch (sigsetjmp(env, 0)) {
@@ -328,58 +194,4 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 		.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
 	};
 	return true;
-}
-
-int main(int argc, char **argv) {
-	char file_path[FILE_PATH_CAP] = {0};
-	Texture2D texture = {0};
-	bool have_texture = false;
-
-	// Check if a file was given on the command line
-	if (argc >= 2) {
-		strncpy(file_path, argv[2], FILE_PATH_CAP);
-		Image image = {0};
-		if (!parse_xpm_file(&image, file_path))
-			have_texture = false;
-		else {
-			UnloadTexture(texture);
-			texture = LoadTextureFromImage(image);
-			have_texture = true;
-		}
-	}
-
-	int screenWidth = 800;
-	int screenHeight = 600;
-	SetTraceLogLevel(LOG_WARNING);
-	InitWindow(screenWidth, screenHeight, "simplexpm");
-
-	while (!WindowShouldClose()) {
-		if (IsFileDropped()) {
-			FilePathList file_paths = LoadDroppedFiles();
-			strncpy(file_path, file_paths.paths[0], FILE_PATH_CAP);
-			UnloadDroppedFiles(file_paths);
-			Image image = {0};
-			if (!parse_xpm_file(&image, file_path))
-				have_texture = false;
-			else {
-				UnloadTexture(texture);
-				texture = LoadTextureFromImage(image);
-				have_texture = true;
-			}
-		}
-
-		BeginDrawing();
-		ClearBackground(RAYWHITE);
-		if (have_texture) {
-            DrawTexture(texture, screenWidth / 2 - texture.width / 2, screenHeight / 2 - texture.height / 2, WHITE);
-		} else {
-			DrawText(error_message, GetScreenWidth() / 2, GetScreenHeight() / 2, 24, RED);
-		}
-		EndDrawing();
-	}
-
-	UnloadTexture(texture);
-	CloseWindow();
-
-	return 0;
 }
