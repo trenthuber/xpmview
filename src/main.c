@@ -7,14 +7,18 @@
 #include "raylib.h"
 #include "utils.h"
 
+#define DEFAULT_SCREEN_WIDTH 800
+#define DEFAULT_SCREEN_HEIGHT 600
 #define FILE_PATH_CAP 2048
 #define FONT_SIZE 48
 
-Image image;
-Texture2D texture;
-bool have_texture;
+// TODO: Improve error messages
 
-void create_texture_from_xpm_file(char *xpm_file_path) {
+static Image image;
+static Texture2D texture;
+static bool have_texture;
+
+static void create_texture_from_xpm_file(const char *xpm_file_path) {
 	if (!parse_xpm_file(&image, xpm_file_path))
 		have_texture = false;
 	else {
@@ -27,16 +31,13 @@ void create_texture_from_xpm_file(char *xpm_file_path) {
 int main(int argc, char **argv) {
 	char xpm_file_path[FILE_PATH_CAP] = {0};
 
-	// Check if a file was given on the command line
 	if (argc >= 2) {
-		strncpy(xpm_file_path, argv[2], FILE_PATH_CAP);
+		strncpy(xpm_file_path, argv[1], FILE_PATH_CAP);
 		create_texture_from_xpm_file(xpm_file_path);
 	}
 
-	int default_screen_width = 800;
-	int default_screen_height = 600;
 	SetTraceLogLevel(LOG_WARNING);
-	InitWindow(default_screen_width, default_screen_height, "simplexpm");
+	InitWindow(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "simplexpm");
 	SetWindowState(FLAG_WINDOW_RESIZABLE);
 
 	Font font = LoadFontEx("./fonts/Comic_Sans_MS.ttf", FONT_SIZE, NULL, 0);

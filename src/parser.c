@@ -115,10 +115,10 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 				size_t hex_value = convert_token_to_num(++color_str, 16);
 				if (hex_value> 0xffffff)
 					SIMPLE_XPM_ERROR("Hex #%s is not a valid color value", color_str);
-				size_t r = (hex_value & 0x00ff0000) >> (2 * 8);
-				size_t g = (hex_value & 0x0000ff00);
-				size_t b = (hex_value & 0x000000ff) << (2 * 8);
-				size_t a = 0xff000000;
+				size_t r = (hex_value & 0x00ff0000) >> (2 * 8),
+				       g = (hex_value & 0x0000ff00),
+				       b = (hex_value & 0x000000ff) << (2 * 8),
+				       a = 0xff000000;
 				color = r | g | b | a;
 				break;
 			case '%':; // HSV

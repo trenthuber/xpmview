@@ -4,7 +4,10 @@
 
 #define CC "cc"
 
-void build_raylib(void) {
+int main(int argc, char **argv) {
+	cbs_rebuild_self(argv);
+	cbs_shift_args(&argc, &argv);
+
 	const char *raylib_src_dir = "./raylib/src";
 	Cbs_File_Paths raylib_src_files = {0}, raylib_obj_files = {0};
 	cbs_file_paths_build_file_ext(&raylib_src_files, raylib_src_dir, ".c");
@@ -33,18 +36,6 @@ void build_raylib(void) {
 		cbs_cmd_build_file_paths(&cmd, raylib_obj_files);
 		cbs_cmd_run(&cmd);
 	}
-}
-
-void build_stbi_image_write(void) {
-
-}
-
-int main(int argc, char **argv) {
-	cbs_rebuild_self(argv);
-	cbs_shift_args(&argc, &argv);
-
-	build_raylib();
-	build_stbi_image_write();
 
 	return 0;
 }

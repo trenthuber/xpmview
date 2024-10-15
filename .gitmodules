@@ -4,6 +4,3 @@
 [submodule "external/raylib"]
 	path = external/raylib
 	url = git@github.com:raysan5/raylib.git
-[submodule "external/stb"]
-	path = external/stb
-	url = git@github.com:nothings/stb.git

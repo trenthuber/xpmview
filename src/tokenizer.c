@@ -3,7 +3,6 @@
 #include <string.h>
 #include <sys/errno.h>
 
-#include "raylib.h"
 #include "utils.h"
 
 // TODO: Ignore comments
@@ -18,7 +17,7 @@ int get_next_line(char **buffer, FILE *file) {
 	return 1;
 }
 
-void check_next_token(char **string, char *token) {
+void check_next_token(char **string, const char *token) {
 	size_t token_len = strlen(token);
 	if (strncmp(strstrip(string), token, token_len) != 0)
 		SIMPLE_XPM_ERROR("Unable to parse provided file: expected token \"%s\"", token);
@@ -67,7 +66,7 @@ defer:
 	return result;
 }
 
-size_t convert_token_to_num(char *token, int base) {
+size_t convert_token_to_num(const char *token, int base) {
 	if (token == NULL)
 		SIMPLE_XPM_ERROR("Expected non-null token to parse");
 	errno = 0;

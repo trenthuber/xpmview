@@ -10,6 +10,6 @@ typedef enum {
 	NUM_XPM_MODES,
 } Xpm_Mode;
 
-Xpm_Mode convert_token_to_mode(char *token);
+Xpm_Mode convert_token_to_mode(const char *token);
 
 #endif // _XPM_MODE_H_
