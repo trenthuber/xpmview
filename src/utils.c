@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-char error_message[ERROR_MESSAGE_CAP] = "Drag and drop .xpm files here";
+char error_message[ERROR_MESSAGE_CAP] = "Drag and drop an XPM file here";
 jmp_buf env;
 
 char *strstrip(char **string) {
