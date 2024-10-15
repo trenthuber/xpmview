@@ -9,6 +9,10 @@
 
 #define FILE_PATH_CAP 2048
 
+// TODO: Implement writing to PNG file (stb image write)
+// TODO: Add ability to reload current file
+// TODO: Update visual interface
+
 int main(int argc, char **argv) {
 	char file_path[FILE_PATH_CAP] = {0};
 	Texture2D texture = {0};
