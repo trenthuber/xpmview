@@ -5,12 +5,12 @@
 #include "parser.h"
 #define SUPPORT_IMAGE_EXPORT
 #include "raylib.h"
+#include "source_code_pro_font.h"
 #include "utils.h"
 
 #define DEFAULT_SCREEN_WIDTH 800
 #define DEFAULT_SCREEN_HEIGHT 600
 #define FILE_PATH_CAP 2048
-#define FONT_SIZE 48
 
 // TODO: Improve error messages
 
@@ -19,12 +19,9 @@ static Texture2D texture;
 static bool have_texture;
 
 static void create_texture_from_xpm_file(const char *xpm_file_path) {
-	if (!parse_xpm_file(&image, xpm_file_path))
-		have_texture = false;
-	else {
+	if ((have_texture = parse_xpm_file(&image, xpm_file_path))) {
 		UnloadTexture(texture);
 		texture = LoadTextureFromImage(image);
-		have_texture = true;
 	}
 }
 
@@ -39,8 +36,9 @@ int main(int argc, char **argv) {
 	SetTraceLogLevel(LOG_WARNING);
 	InitWindow(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "simplexpm");
 	SetWindowState(FLAG_WINDOW_RESIZABLE);
+	SetTargetFPS(30);
 
-	Font font = LoadFontEx("./fonts/Comic_Sans_MS.ttf", FONT_SIZE, NULL, 0);
+	Font font = LoadSourceCodeProFont();
 
 	while (!WindowShouldClose()) {
 		if (IsFileDropped()) {
@@ -73,8 +71,8 @@ int main(int argc, char **argv) {
 		} else {
 			Vector2 message_dimensions = MeasureTextEx(font, error_message, FONT_SIZE, 0),
 			        message_placement = {
-						.x = (screen_width - message_dimensions.x) / 2,
-						.y = (screen_height - message_dimensions.y) / 2,
+			        	.x = (screen_width - message_dimensions.x) / 2,
+			        	.y = (screen_height - message_dimensions.y) / 2,
 			        };
 			DrawTextEx(font, error_message, message_placement, FONT_SIZE, 0, BLACK);
 		}
