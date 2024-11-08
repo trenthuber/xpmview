@@ -11,7 +11,7 @@
 	do { \
 		p = malloc(size); \
 		if (p == NULL) { \
-			fprintf(stderr, "simplexpm: OUT OF MEMORY: Terminating\n"); \
+			fprintf(stderr, "simplexpm: OUT OF MEMORY: Terminating process\n"); \
 			exit(EXIT_FAILURE); \
 		} \
 		memset(p, 0, size); \
@@ -33,8 +33,7 @@ extern unsigned int line_number;
 		SIMPLE_XPM_FREE(keys); \
 		SIMPLE_XPM_FREE(color_table); \
 		SIMPLE_XPM_FREE(pixels); \
-		fprintf(stderr, "simplexpm: ERROR: "); \
-		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "simplexpm: ERROR: " __VA_ARGS__); \
 		fprintf(stderr, "\n"); \
 		siglongjmp(env, 1); \
 	} while (0)

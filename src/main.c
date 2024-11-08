@@ -40,7 +40,8 @@ int main(void) {
 		}
 		if (IsKeyPressed(KEY_S) && have_texture) {
 			char png_file_path[FILE_PATH_CAP] = {0};
-			strncpy(png_file_path, xpm_file_path, strlen(xpm_file_path) - strlen(".xpm"));
+			strncpy(png_file_path, xpm_file_path,
+			        strlen(xpm_file_path) - strlen(".xpm"));
 			strncat(png_file_path, ".png", strlen(".png"));
 			ExportImage(image, png_file_path);
 		}
@@ -54,8 +55,10 @@ int main(void) {
 			float scale = screen_width * texture.height > screen_height * texture.width
 			            ? (float)screen_height / texture.height
 			            : (float)screen_width / texture.width;
-			Vector2 position = CLITERAL(Vector2){(screen_width - (texture.width * scale)) / 2,
-			                                      (screen_height - (texture.height * scale)) / 2};
+			Vector2 position = CLITERAL(Vector2){
+				(screen_width - (texture.width * scale)) / 2,
+			    (screen_height - (texture.height * scale)) / 2
+			};
 			DrawTextureEx(texture, position, 0, scale, WHITE);
 		} else {
 			const char *message = startup ? "Drag and drop an XPM file here"
