@@ -11,7 +11,7 @@
 	do { \
 		p = malloc(size); \
 		if (p == NULL) { \
-			fprintf(stderr, "simplexpm: OUT OF MEMORY (buy more RAM?)"); \
+			fprintf(stderr, "simplexpm: OUT OF MEMORY: Terminating\n"); \
 			exit(EXIT_FAILURE); \
 		} \
 		memset(p, 0, size); \
@@ -23,9 +23,8 @@
 		p = NULL; \
 	} while (0)
 
-#define ERROR_MESSAGE_CAP 2048
-extern char error_message[ERROR_MESSAGE_CAP];
 extern jmp_buf env;
+extern unsigned int line_number;
 
 #define SIMPLE_XPM_ERROR(...) \
 	do { \
@@ -34,7 +33,9 @@ extern jmp_buf env;
 		SIMPLE_XPM_FREE(keys); \
 		SIMPLE_XPM_FREE(color_table); \
 		SIMPLE_XPM_FREE(pixels); \
-		snprintf(error_message, ERROR_MESSAGE_CAP, __VA_ARGS__); \
+		fprintf(stderr, "simplexpm: ERROR: "); \
+		fprintf(stderr, __VA_ARGS__); \
+		fprintf(stderr, "\n"); \
 		siglongjmp(env, 1); \
 	} while (0)
 

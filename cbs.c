@@ -2,6 +2,8 @@
 #define CBS_LIBRARY_PATH "./external/cbs.d/cbs.h"
 #include CBS_LIBRARY_PATH
 
+// TODO: Support for Linux
+
 #define CC "cc"
 #define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-I./external/raylib/src", "-I./fonts"
 #ifdef __MACH__
@@ -43,7 +45,7 @@ int main(int argc, char **argv) {
 	cbs_file_paths_build_file_ext(&src_files, "./src", ".c");
 	cbs_file_paths_for_each (src_file, src_files) {
 		const char *obj_file = cbs_string_build(cbs_strip_file_ext(src_file), ".o");
-		if (cbs_needs_rebuild(obj_file, src_file))
+		if (cbs_needs_rebuild(obj_file, src_file, "./src/utils.h"))
 		    cbs_run(CC, CFLAGS, "-c", "-o", obj_file, src_file);
 	}
 

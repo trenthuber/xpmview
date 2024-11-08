@@ -16,6 +16,7 @@ unsigned int *color_table;
 unsigned int *pixels;
 
 bool parse_xpm_file(Image *image, const char *file_path) {
+	line_number = 0;
 	switch (sigsetjmp(env, 0)) {
 	case 1:
 		return false;
@@ -24,12 +25,10 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 	if ((file = fopen(file_path, "r")) == NULL)
 		SIMPLE_XPM_ERROR("Unable to open provided file");
 
-	get_next_line(&line_buffer, file);
-	char *line_buffer_p = line_buffer;
-	check_next_token(&line_buffer_p, "/* XPM */");
+	check_xpm_header(file);
 
-	get_next_line(&line_buffer, file);
-	line_buffer_p = line_buffer;
+	get_next_line_check_eof(&line_buffer, file);
+	char *line_buffer_p = line_buffer;
 	check_next_token(&line_buffer_p, "static");
 	if (!isspace(*line_buffer_p))
 		SIMPLE_XPM_ERROR("Expected token \"static\"");
@@ -46,7 +45,7 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 	check_next_token(&line_buffer_p, "{");
 
 	// Parse values
-	get_next_line(&line_buffer, file);
+	get_next_line_check_eof(&line_buffer, file);
 	line_buffer_p = line_buffer;
 	check_next_token(&line_buffer_p, "\"");
 	size_t width = convert_token_to_num(get_next_token(&line_buffer_p), 10),
@@ -90,7 +89,7 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 	SIMPLE_XPM_MALLOC(color_table, NUM_XPM_MODES * num_colors * sizeof(*color_table));
 	bool possible_modes[NUM_XPM_MODES] = {false};
 	for (size_t i = 0; i < num_colors; ++i) {
-		get_next_line(&line_buffer, file);
+		get_next_line_check_eof(&line_buffer, file);
 		line_buffer_p = line_buffer;
 		check_next_token(&line_buffer_p, "\"");
 
@@ -144,7 +143,7 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 	char *key_buffer;
 	SIMPLE_XPM_MALLOC(key_buffer, (chars_per_pixel + 1) * sizeof(*key_buffer));
 	for (size_t i = 0; i < height; ++i) {
-		get_next_line(&line_buffer, file);
+		get_next_line_check_eof(&line_buffer, file);
 		line_buffer_p = line_buffer;
 		check_next_token(&line_buffer_p, "\"");
 		if (strlen(line_buffer_p) < width * chars_per_pixel + strlen("\","))
@@ -172,7 +171,7 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 		printf("Parsing XPM extensions\n");
 	}
 
-	get_next_line(&line_buffer, file);
+	get_next_line_check_eof(&line_buffer, file);
 	line_buffer_p = line_buffer;
 	check_next_token(&line_buffer_p, "}");
 	check_next_token(&line_buffer_p, ";");

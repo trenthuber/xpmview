@@ -12,27 +12,7 @@
 #define DEFAULT_SCREEN_HEIGHT 600
 #define FILE_PATH_CAP 2048
 
-// TODO: Improve error messages
-
-static Image image;
-static Texture2D texture;
-static bool have_texture;
-
-static void create_texture_from_xpm_file(const char *xpm_file_path) {
-	if ((have_texture = parse_xpm_file(&image, xpm_file_path))) {
-		UnloadTexture(texture);
-		texture = LoadTextureFromImage(image);
-	}
-}
-
-int main(int argc, char **argv) {
-	char xpm_file_path[FILE_PATH_CAP] = {0};
-
-	if (argc >= 2) {
-		strncpy(xpm_file_path, argv[1], FILE_PATH_CAP);
-		create_texture_from_xpm_file(xpm_file_path);
-	}
-
+int main(void) {
 	SetTraceLogLevel(LOG_WARNING);
 	InitWindow(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "simplexpm");
 	SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -40,16 +20,25 @@ int main(int argc, char **argv) {
 
 	Font font = LoadSourceCodeProFont();
 
+	char xpm_file_path[FILE_PATH_CAP] = {0};
+	Image image;
+	Texture2D texture;
+	bool have_texture = false, startup = true;
 	while (!WindowShouldClose()) {
-		if (IsFileDropped()) {
+		bool isFileDropped = IsFileDropped();
+		if (isFileDropped) {
 			FilePathList file_paths = LoadDroppedFiles();
 			strncpy(xpm_file_path, file_paths.paths[0], FILE_PATH_CAP);
 			UnloadDroppedFiles(file_paths);
-			create_texture_from_xpm_file(xpm_file_path);
 		}
-		if (IsKeyDown(KEY_R) && have_texture)
-			create_texture_from_xpm_file(xpm_file_path);
-		if (IsKeyDown(KEY_S) && have_texture) {
+		if ((IsKeyPressed(KEY_R) && !startup) || isFileDropped) {
+			if ((have_texture = parse_xpm_file(&image, xpm_file_path))) {
+				UnloadTexture(texture);
+				texture = LoadTextureFromImage(image);
+			}
+			startup = false;
+		}
+		if (IsKeyPressed(KEY_S) && have_texture) {
 			char png_file_path[FILE_PATH_CAP] = {0};
 			strncpy(png_file_path, xpm_file_path, strlen(xpm_file_path) - strlen(".xpm"));
 			strncat(png_file_path, ".png", strlen(".png"));
@@ -69,12 +58,15 @@ int main(int argc, char **argv) {
 			                                      (screen_height - (texture.height * scale)) / 2};
 			DrawTextureEx(texture, position, 0, scale, WHITE);
 		} else {
-			Vector2 message_dimensions = MeasureTextEx(font, error_message, FONT_SIZE, 0),
+			const char *message = startup ? "Drag and drop an XPM file here"
+			                              : "Unable to parse XPM file\n"
+			                                "(see console for detail)";
+			Vector2 message_dimensions = MeasureTextEx(font, message, FONT_SIZE, 0),
 			        message_placement = {
 			        	.x = (screen_width - message_dimensions.x) / 2,
 			        	.y = (screen_height - message_dimensions.y) / 2,
 			        };
-			DrawTextEx(font, error_message, message_placement, FONT_SIZE, 0, BLACK);
+			DrawTextEx(font, message, message_placement, FONT_SIZE, 0, BLACK);
 		}
 		EndDrawing();
 	}

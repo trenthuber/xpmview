@@ -5,8 +5,8 @@
 
 #include "utils.h"
 
-char error_message[ERROR_MESSAGE_CAP] = "Drag and drop an XPM file here";
 jmp_buf env;
+unsigned int line_number;
 
 char *strstrip(char **string) {
 	for (; isspace(**string) && **string != '\0'; ++*string);
