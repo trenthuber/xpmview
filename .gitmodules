@@ -1,6 +1,8 @@
 [submodule "external/cbs.d"]
 	path = external/cbs.d
 	url = git@github.com:trenthuber/cbs.git
+	branch = main
 [submodule "external/raylib"]
 	path = external/raylib
 	url = git@github.com:raysan5/raylib.git
+	branch = main
