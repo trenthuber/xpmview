@@ -9,9 +9,8 @@ To build the program, all you need is `git` (which you obviously have if you're 
 ```console
 $ git clone https://github.com/trenthuber/simplexpm.git
 $ cd simplexpm
-$ git submodule update --init --recursive
-$ cc -o cbs cbs.c
-$ ./cbs
+$ git submodule update --init
+$ cc -o cbs cbs.c && ./cbs
 ```
 
 This will update all submodules (I use [Raylib](https://www.raylib.com) and my own C build system [cbs](https://github.com/trenthuber/cbs.git)) and then build and run the program.
