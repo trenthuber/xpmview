@@ -13,6 +13,9 @@ static bool line_is_comment(char *line) {
 
 	// Remove comments from line
 	char *multiline_start = NULL;
+	char *first_quote;
+	char *second_quote;
+
 	do {
 		if (is_multiline) {
 			char *multiline_end;
@@ -29,11 +32,26 @@ static bool line_is_comment(char *line) {
 			multiline_end += strlen("*/");
 			memmove(multiline_start, multiline_end, strlen(multiline_end) + 1);
 		}
+
+		first_quote = strstr(line, "\"");
 		char *singleline_start = strstr(line, "//");
+		if (first_quote)
+		{
+			second_quote = strstr(first_quote + 1, "\"");
+			if (first_quote < singleline_start && multiline_start < second_quote)
+				singleline_start = NULL;
+		}
 		if (singleline_start)
 			*singleline_start = '\0';
 
+		first_quote = strstr(line, "\"");
 		multiline_start = strstr(line, "/*");
+		if (first_quote)
+		{
+			second_quote = strstr(first_quote + 1, "\"");
+			if (first_quote < multiline_start && multiline_start < second_quote)
+				multiline_start = NULL;
+		}
 	} while (multiline_start && (multiline_num = line_number, is_multiline = true));
 
 	// Return true if the line is only whitespace at this point
