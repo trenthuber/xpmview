@@ -169,14 +169,11 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 			SIMPLE_XPM_ERROR("Line %d in pixels sections contains too few characters to "
 			                 "be properly parsed", line_number);
 		for (size_t j = 0; j < width; ++j) {
-			for (size_t k = 0; k < chars_per_pixel; ++k) {
+			for (size_t k = 0; k < chars_per_pixel; ++k)
 				key_buffer[k] = *line_buffer_p++;
-			}
-			for (size_t l = 0; l < num_colors; ++l) {
-				if (strncmp(&keys[l * chars_per_pixel], key_buffer, chars_per_pixel) == 0) {
+			for (size_t l = 0; l < num_colors; ++l)
+				if (strncmp(&keys[l * chars_per_pixel], key_buffer, chars_per_pixel) == 0)
 					pixels[width * i + j] = color_table[current_mode * num_colors + l];
-				}
-			}
 		}
 		if (*line_buffer_p++ != '"') // Needs to be done manually for whitespace
 			SIMPLE_XPM_ERROR("Expected a `\"' at the end of line %d", line_number);
@@ -191,6 +188,9 @@ bool parse_xpm_file(Image *image, const char *file_path) {
 		fprintf(stdout, "simplexpm: INFO: Parsing XPM extensions\n");
 	}
 
+	/* TODO: Generally improve tokenizer and specifically allow for "};" to appear
+	 * on the same line as the ",".
+	 */
 	get_next_line_check_eof(&line_buffer, file);
 	line_buffer_p = line_buffer;
 	check_next_token(&line_buffer_p, "}");

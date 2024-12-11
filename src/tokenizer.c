@@ -10,31 +10,44 @@ static bool is_multiline;
 static unsigned int multiline_num;
 
 static bool line_is_comment(char *line) {
-
-	// Remove comments from line
-	char *multiline_start = NULL;
-	do {
-		if (is_multiline) {
-			char *multiline_end;
-			if (multiline_start) multiline_end = strstr(multiline_start + 2, "*/");
-			else multiline_end = strstr(line, "*/");
-			if (!multiline_end) {
-				if (!multiline_start) return true;
-				*multiline_start = '\0';
+	for (int i = 0; i < (int)strlen(line); ++i) {
+		switch (line[i]) {
+		case '/':
+			switch (line[i + 1]) {
+			case '/':
+				line[i] = '\0';
+				goto loop_end;
+			case '*':;
+				char *multiline_end = strstr(&line[i + 2], "*/");
+				if (!multiline_end) {
+					line[i] = '\0';
+					multiline_num = line_number;
+					is_multiline = true;
+					goto loop_end;
+				}
+				line[i] = ' ';
+				multiline_end += strlen("*/");
+				memmove(&line[i + 1], multiline_end, strlen(multiline_end) + 1);
 				break;
 			}
+			break;
+		case '*':
+			if (!is_multiline) break;
+			if (line[i + 1] != '/') break;
 			is_multiline = false;
-			if (multiline_start) *(multiline_start++) = ' ';
-			else multiline_start = line;
-			multiline_end += strlen("*/");
-			memmove(multiline_start, multiline_end, strlen(multiline_end) + 1);
+			memmove(line, &line[i + 2], strlen(&line[i + 2]) + 1);
+			i = -1;
+			break;
+		case '"':;
+			char *string_end = strstr(&line[i + 1], "\"");
+			if (!string_end)
+				SIMPLE_XPM_ERROR("String on line %d not terminated; "
+								 "no support for multiline strings", line_number);
+			i += string_end - &line[i];
+			break;
 		}
-		char *singleline_start = strstr(line, "//");
-		if (singleline_start)
-			*singleline_start = '\0';
-
-		multiline_start = strstr(line, "/*");
-	} while (multiline_start && (multiline_num = line_number, is_multiline = true));
+	}
+loop_end:
 
 	// Return true if the line is only whitespace at this point
 	return *strstrip(&line) == '\0';
@@ -99,6 +112,7 @@ char *get_next_token(char **string) {
 	return result;
 }
 
+// Used for the "values" and "colors" sections, but not the "pixels" section
 bool get_terminal_token(char **string, char **token) {
 	bool result = true;
 	while (**string == '\t' || **string == ' ') ++*string;
