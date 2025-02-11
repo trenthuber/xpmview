@@ -10,7 +10,7 @@ To build the program, all you need is `git` (which you obviously have if you're 
 $ git clone https://github.com/trenthuber/simplexpm.git
 $ cd simplexpm
 $ git submodule update --init
-$ cc -o cbs cbs.c && ./cbs
+$ cc -o build build.c && ./build
 ```
 
 This will update all submodules (I use [Raylib](https://www.raylib.com) and my own C build system [cbs](https://github.com/trenthuber/cbs.git)) and then build and run the program.
@@ -21,7 +21,7 @@ To run the program after it's been built, just run the executable found in the `
 
 Simply drag and drop XPM files into the window to view them. The window can be resized and the image will scale accordingly.
 
-To reload the current image press R. To save the current image as a PNG, press S. PNG files are saved to the same folder as the XPM file.
+To reload the current image press `R`. To save the current image as a PNG, press `S`. PNG files are saved to the same folder as the XPM file.
 
 ## Unimplemented features
 - Not tested for Linux (built on macOS)
