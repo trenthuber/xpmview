@@ -24,7 +24,7 @@ int main(void) {
 
 	for (i = 0; srcs[i]; ++i) CC(srcs[i]);
 
-	LD('s', "../lib/raylib", SRCS);
+	LD('s', "../lib/libraylib.a", SRCS);
 
 	return 0;
 }
