@@ -2,7 +2,8 @@
 #define FONTPATH "fonts/"
 
 #define CFLAGS "-Wall", "-Wextra", "-Wpedantic", "-Iexternal/raylib/src/", "-Ifonts/"
-#define LDFLAGS "-framework", "CoreVideo", \
+#define LDFLAGS "-Llib/", "-lraylib", \
+                "-framework", "CoreVideo", \
                 "-framework", "IOKit", \
                 "-framework", "Cocoa", \
                 "-framework", "GLUT", \
@@ -34,8 +35,7 @@ int main(void) {
 	for (i = 0; srcs[i]; ++i) CC(srcs[i], HDRS);
 	for (i = 0; fonts[i]; ++i) CC(fonts[i], fonts[i]);
 
-	// LD('x', "bin/simplexpm", SRCS, FONTS);
-	LD('x', "bin/simplexpm", "lib/libraylib.a", SRCS, FONTS);
+	LD('x', "bin/simplexpm", SRCS, FONTS);
 
 	return 0;
 }
