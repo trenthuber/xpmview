@@ -13,7 +13,7 @@ $ git submodule update --init
 $ cc -o build build.c && ./build && ./bin/simplexpm
 ```
 
-This will update the [Raylib](https://www.raylib.com) and [cbs](https://github.com/trenthuber/cbs.git)) submodules, build eveything, and run it.
+This will update the [Raylib](https://www.raylib.com) and [cbs](https://github.com/trenthuber/cbs.git) submodules, build eveything, and run it.
 
 ## Using the program
 
