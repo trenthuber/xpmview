@@ -1,30 +1,24 @@
-#define SRCPATH "raylib/src/"
+#include "../build.h"
 
-#define CFLAGS \
-	"-x", "objective-c", \
-	"-DPLATFORM_DESKTOP", \
-	"-I" SRCPATH "external/glfw/include/"
-#define LDFLAGS ""
+#define ROOT "../"
 
 #include "cbs/cbs.c"
 
-#define SRCS \
-	SRCPATH "raudio", SRCPATH "rcore", \
-	SRCPATH "rglfw", SRCPATH "rmodels", \
-	SRCPATH "rshapes", SRCPATH "rtext", \
-	SRCPATH "rtextures", SRCPATH "utils"
-
 int main(void) {
-	char **srcs;
+	char **src;
 	int i;
 
 	build(NULL);
 
-	srcs = CARRAY(SRCS);
+	src = (char *[]){RLSRCS(ROOT), NULL};
+	cflags = (char *[]){RLCFPLAT, NULL};
+	for (i = 0; i < 6; ++i) compile(src[i], NULL);
+	cflags = (char *[]){RLCFPLAT, "-I" ROOT RLGLFWINC, NULL};
+	compile(src[6], NULL);
+	cflags = (char *[]){RLCFPLAT, "-I" ROOT RLGLFWINC, RLCFOBJC, NULL};
+	compile(src[7], NULL);
 
-	for (i = 0; srcs[i]; ++i) CC(srcs[i]);
-
-	LD('s', "../lib/libraylib.a", SRCS);
+	load('s', ROOT RLLIB, RLSRCS(ROOT), NULL);
 
 	return 0;
 }

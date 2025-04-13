@@ -1,78 +1,116 @@
 #include <setjmp.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
+#include <sys/time.h>
+#include <unistd.h>
 
-#include "parser.h"
+#include "error.h"
+#include "options.h"
 #define SUPPORT_IMAGE_EXPORT
 #include "raylib.h"
-#include "source_code_pro_font.h"
-#include "utils.h"
+#include "xpm.h"
 
-#define DEFAULT_SCREEN_WIDTH 800
-#define DEFAULT_SCREEN_HEIGHT 600
-#define FILE_PATH_CAP 2048
+extern bool isGpuReady;
 
-int main(void) {
-	SetTraceLogLevel(LOG_WARNING);
-	InitWindow(DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT, "simplexpm");
-	SetWindowState(FLAG_WINDOW_RESIZABLE);
-	SetTargetFPS(30);
+#include "font.c"
 
-	Font font = LoadSourceCodeProFont();
-
-	char xpm_file_path[FILE_PATH_CAP] = {0};
+int main(int argc, char **argv) {
+	int debug, mode, width, height, len;
+	char *xpm, *welcome, *error;
 	Image image;
 	Texture2D texture;
-	bool have_texture = false, startup = true;
+	Font font;
+	FilePathList files;
+	KeyboardKey key;
+	float scale;
+	Vector2 pos, dim;
+
+	if (!options(argc, argv, &debug, &xpm)) return 1;
+
+	if (!debug) SetTraceLogLevel(LOG_ERROR);
+	InitWindow(800, 600, "simplexpm");
+	SetWindowState(FLAG_WINDOW_RESIZABLE);
+	SetTargetFPS(30);
+	SetExitKey(KEY_Q);
+
+	image = (Image){0};
+	mode = DEFAULT;
+	texture = gettexture(xpm, &image, mode);
+	if (xpm && texture.id == 0) return 1;
+	font = LoadFont_Font();
+	welcome = "Drag and drop an XPM file here";
+	error = "Unable to parse XPM file:\n see console for details";
 	while (!WindowShouldClose()) {
-		bool isFileDropped = IsFileDropped();
-		if (isFileDropped) {
-			FilePathList file_paths = LoadDroppedFiles();
-			strncpy(xpm_file_path, file_paths.paths[0], FILE_PATH_CAP);
-			UnloadDroppedFiles(file_paths);
-		}
-		if ((IsKeyPressed(KEY_R) && !startup) || isFileDropped) {
-			if ((have_texture = parse_xpm_file(&image, xpm_file_path))) {
-				UnloadTexture(texture);
-				texture = LoadTextureFromImage(image);
+		if (IsFileDropped()) {
+			files = LoadDroppedFiles();
+			if (xpm) RL_FREE(xpm);
+			xpm = RL_CALLOC(FILENAME_MAX, 1);
+			TextCopy(xpm, files.paths[0]);
+			UnloadDroppedFiles(files);
+			texture = gettexture(xpm, &image, mode);
+		} else switch ((key = GetKeyPressed())) {
+		case KEY_R:
+			if (xpm) texture = gettexture(xpm, &image, mode);
+			break;
+		case KEY_S:
+			if (texture.id == 0) break;
+			len = strlen(xpm);
+			strncpy(xpm + len - 4, ".png", 4);
+			ExportImage(image, xpm);
+			strncpy(xpm + len - 4, ".xpm", 4);
+			break;
+		default:
+			switch (key) {
+			case KEY_M:
+				mode = MODEM;
+				break;
+			case KEY_FOUR:
+				mode = MODEG4;
+				break;
+			case KEY_G:
+				mode = MODEG;
+				break;
+			case KEY_C:
+				mode = MODEC;
+				break;
+			default:
+				continue;
 			}
-			startup = false;
-		}
-		if (IsKeyPressed(KEY_S) && have_texture) {
-			char png_file_path[FILE_PATH_CAP] = {0};
-			strncpy(png_file_path, xpm_file_path,
-			        strlen(xpm_file_path) - strlen(".xpm"));
-			strncat(png_file_path, ".png", strlen(".png"));
-			ExportImage(image, png_file_path);
+			if (xpm) texture = gettexture(NULL, &image, mode);
+		case KEY_NULL:;
 		}
 
 		BeginDrawing();
-		ClearBackground(CLITERAL(Color){0xEC, 0xEC, 0xEC, 0xFF});
 
-		int screen_width = GetScreenWidth();
-		int screen_height = GetScreenHeight();
-		if (have_texture) {
-			float scale = screen_width * texture.height > screen_height * texture.width
-			            ? (float)screen_height / texture.height
-			            : (float)screen_width / texture.width;
-			Vector2 position = CLITERAL(Vector2){
-				(screen_width - (texture.width * scale)) / 2,
-			    (screen_height - (texture.height * scale)) / 2
+		ClearBackground(CLITERAL(Color){0xec, 0xec, 0xec, 0xff});
+
+		width = GetRenderWidth();
+		height = GetRenderHeight();
+		if (texture.id) {
+			scale = width * texture.height > height * texture.width
+			        ? (float)height / texture.height
+			        : (float)width / texture.width;
+			pos = CLITERAL(Vector2){
+				(width - texture.width * scale) / 2,
+			    (height - texture.height * scale) / 2,
 			};
-			DrawTextureEx(texture, position, 0, scale, WHITE);
+			DrawTextureEx(texture, pos, 0, scale, WHITE);
 		} else {
-			const char *message = startup ? "Drag and drop an XPM file here"
-			                              : "Unable to parse XPM file\n"
-			                                "(see console for detail)";
-			Vector2 message_dimensions = MeasureTextEx(font, message, FONT_SIZE, 0),
-			        message_placement = {
-			        	.x = (screen_width - message_dimensions.x) / 2,
-			        	.y = (screen_height - message_dimensions.y) / 2,
-			        };
-			DrawTextEx(font, message, message_placement, FONT_SIZE, 0, BLACK);
+			dim = MeasureTextEx(font, xpm ? error : welcome, font.baseSize, 0);
+			pos = (Vector2){
+				.x = (width - dim.x) / 2,
+				.y = (height - dim.y) / 2,
+			};
+			DrawTextEx(font, xpm ? error : welcome, pos, font.baseSize, 0, BLACK);
 		}
+
 		EndDrawing();
 	}
+
+	if (xpm) RL_FREE(xpm);
 
 	UnloadTexture(texture);
 	CloseWindow();

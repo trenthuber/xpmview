@@ -1,0 +1,1 @@
+void xpmerror(char *fmt, ...);
