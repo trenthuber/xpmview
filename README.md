@@ -1,4 +1,4 @@
-# simplexpm [(this is where the icon would be)](images/test.png)
+# simplexpm
 
 simplexpm is a simple GUI application used to view XPM image files. The entire application is written in C, even down to the build system.
 
