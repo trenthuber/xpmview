@@ -18,13 +18,14 @@ extern bool isGpuReady;
 #include "font.c"
 
 int main(int argc, char **argv) {
-	int debug, mode, width, height, len;
+	int debug, mode;
 	char *xpm, *welcome, *error;
 	Image image;
 	Texture2D texture;
 	Font font;
 	FilePathList files;
 	KeyboardKey key;
+	size_t len, width, height;
 	float scale;
 	Vector2 pos, dim;
 

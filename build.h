@@ -1,27 +1,29 @@
-#define BIN "bin/"
-#define EXTERNAL "external/"
-#define SRC "src/"
+// #define RLDYNAMIC
 
-#define CBSSRC EXTERNAL "cbs/"
-#define CBS CBSSRC "cbs.c"
+#ifdef RLDYNAMIC
+#define RLEXT DYEXT
+#else
+#define RLEXT ".a"
+#endif
 
-#define RLROOT EXTERNAL "raylib/"
+#define SRC ROOT "src/"
+
+#define RLROOT ROOT "external/raylib/"
 #define RLSRC RLROOT "src/"
-
-#define RLSRCS(ROOT) \
-	ROOT RLSRC "raudio", ROOT RLSRC "rmodels", \
-	ROOT RLSRC "rshapes", ROOT RLSRC "rtext", \
-	ROOT RLSRC "rtextures", ROOT RLSRC "utils", \
-	ROOT RLSRC "rcore", ROOT RLSRC "rglfw"
-#define RLCFPLAT "-DPLATFORM_DESKTOP"
-#define RLGLFWINC RLSRC "external/glfw/include"
-#define RLCFOBJC "-x", "objective-c"
-
 #define RLHDR RLSRC "raylib"
-#define RLLIB RLROOT "raylib.a"
-#define RLLFLAGS \
+#define RLLIB RLROOT "raylib" RLEXT
+
+#define CFGLOBALS "-Wall", "-Wextra", "-Wpedantic"
+#define CFRAYLIB "-I" RLSRC
+#define CFSRC "-I" SRC
+
+#ifdef __APPLE__
+#define LFRAYLIB \
 	"-framework", "Cocoa", \
 	"-framework", "CoreVideo", \
 	"-framework", "GLUT", \
 	"-framework", "IOKit", \
 	"-framework", "OpenGL"
+#else
+#define LFRAYLIB "-lm"
+#endif

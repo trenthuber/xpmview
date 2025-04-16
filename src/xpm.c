@@ -1,9 +1,5 @@
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/errno.h>
 #include <sys/mman.h>
 
 #include "error.h"
@@ -13,109 +9,114 @@
 #include "cbs.c"
 #include "colors.c"
 
+static char *strnsub(char *str, char *sub, size_t l) {
+	size_t subl;
+
+	subl = strlen(sub);
+	while (l-- >= subl) if (strncmp(str++, sub, subl) == 0) return str - 1;
+	return NULL;
+}
+
 static int space(char c) {
 	return c == ' ' || c == '\t';
 }
 
-static void *zalloc(size_t size) {
-	void *result;
+static void *zalloc(size_t s) {
+	void *r;
 
-	if ((result  = calloc(1, size))) return result;
+	if ((r  = calloc(1, s))) return r;
 
-	xpmerror("Out of memory");
+	xpmerror("Memory allocation");
 	exit(EXIT_FAILURE);
 }
 
-static char *arrname(char *p, size_t len) {
-	int step;
-	char *start, *result;
+static char *arrname(char *p, size_t l) {
+	size_t step;
+	char *start, *r;
 
-	for (; (step = 5); len = len > step ? len - step : 0, p += step) {
-		if (len == 0) return NULL;
+	for (; (step = 5); l = l > step ? l - step : 0, p += step) {
+		if (l == 0) return NULL;
 		if (space(*p) || *p == '*') step = 1;
-		else if (strncmp(p, "const", step) != 0
+		else if (strncmp(p, "const", 5) != 0
 		         || (!space(*(p + step)) && *(p + step) != '*'))
 			break;
 	}
 
 	start = p;
-	for (; !space(*p) && *p != '['; ++p, --len) if (len == 0) return NULL;
-	len = p - start;
-	result = zalloc(len + 1);
-	strncpy(result, start, len);
-	result[len] = '\0';
+	for (; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
+	l = p - start;
+	r = zalloc(l + 1);
+	strncpy(r, start, l);
 
-	return result;
+	return r;
 }
 
-static int writeall(int fd, char *buf, size_t size) {
-	ssize_t n;
+static int writeall(int fd, char *buf, size_t n) {
+	ssize_t w;
 
-	while (size > 0) {
-		if ((n = write(fd, buf, size)) == -1) return 0;
-		buf += n;
-		size -= n;
+	while (n > 0) {
+		if ((w = write(fd, buf, n)) == -1) return 0;
+		buf += w;
+		n -= w;
 	}
-	if (size < 0) return 0;
 	return 1;
 }
 
 static int key2mode(char **strp) {
-	int result;
+	int r;
 
 	switch (*(*strp)++) {
 	case 'm':
-		result = MODEM;
+		r = MODEM;
 		break;
 	case 's':
-		result = SYMBOLIC;
+		r = SYMBOLIC;
 		break;
 	case 'g':
 		if (**strp == '4') {
 			++*strp;
-			result = MODEG4;
+			r = MODEG4;
 			break;
 		}
-		result = MODEG;
+		r = MODEG;
 		break;
 	case 'c':
-		result = MODEC;
+		r = MODEC;
 		break;
 	default:
 		xpmerror("Unknown key `%c'", *(*strp - 1));
-		result = NUMMODES;
+		r = NUMMODES;
 	}
 
 	while (space(**strp)) ++*strp;
 
-	return result;
+	return r;
 }
 
-static int lendian(void) {
-	int i;
+static char lendian(void) {
+	size_t i;
 
 	i = 1;
 	return *(char *)&i;
 }
 
 static unsigned int str2color(char **strp) {
-	unsigned int i, result, value;
-	size_t len;
+	size_t i, l;
+	unsigned int r;
 	char *name;
 
-	len = i = 0;
+	l = i = 0;
 
 	// RGB
-	if (**strp == '#') result = strtol(++*strp, strp, 16);
+	if (**strp == '#') r = strtol(++*strp, strp, 16);
 
 	// Color names
 	else for (; i < numcolors; ++i) {
 		name = colors[i].name;
-		value = colors[i].value;
-		len = strlen(name);
-		if (strncmp(name, *strp, len) == 0
-		    && (i == 0 || *(*strp + len) == '\0' || space(*(*strp + len)))) {
-			result = value;
+		l = strlen(name);
+		if (strncmp(name, *strp, l) == 0
+		    && (i == 0 || *(*strp + l) == '\0' || space(*(*strp + l)))) {
+			r = colors[i].value;
 			break;
 		}
 	}
@@ -124,30 +125,25 @@ static unsigned int str2color(char **strp) {
 		return 0;
 	}
 
-	if (result > 0xffffff || result < 0) {
-		xpmerror("`0x%06x' is not a valid RGB color", result);
+	if (r > 0xffffff || r < 0) {
+		xpmerror("`0x%06x' is not a valid RGB color", r);
 		return 0;
 	}
-	if (lendian())
-		result = (result >> 16 & 0xff)
-		         | (result & 0xff00)
-		         | (result & 0xff) << 16;
-	if (strncmp(name, "None", 4) != 0)
-		result |= 0xff000000;
+	if (lendian()) r = (r >> 16 & 0xff) | (r & 0xff00) | (r & 0xff) << 16;
+	if (strcmp(name, "None") != 0) r |= 0xff000000;
 
-	*strp += len;
+	*strp += l;
 	while (space(**strp)) ++*strp;
 
-	return result;
+	return r;
 }
 
 static Image parse(char **data, long *sizep) {
 	Image result;
 	char *p, *chars, **pp;
-	long width, height, ncolors, cpp;
+	long width, height, ncolors, cpp, l;
 	unsigned int *colors, color, *pixels;
 	int i, mode, j, k, m;
-	size_t len;
 
 	// Values
 	result = (Image){0};
@@ -166,7 +162,7 @@ static Image parse(char **data, long *sizep) {
 	colors = zalloc(NUMMODES * ncolors * sizeof*colors);
 	for (i = 0; i < ncolors; ++i) {
 		p = data[1 + i];
-		strncpy(&chars[i * cpp], p, cpp);
+		strncpy(chars + i * cpp, p, cpp);
 		p += cpp;
 		while (space(*p)) ++p;
 		while (*p) switch ((mode = key2mode(&p))) {
@@ -185,18 +181,18 @@ static Image parse(char **data, long *sizep) {
 	// Pixels
 	pixels = zalloc(NUMMODES * height * width * sizeof*pixels);
 	j = width;
-	len = 0;
+	l = 0;
 	for (i = 0, pp = &data[1 + ncolors];
-	     i < height && j == width && len == 0;
+	     i < height && j == width && l == 0;
 	     ++i, ++pp)
-		for (j = 0, p = *pp, len = strlen(p);
-		     j < width && len > 0;
-		     ++j, p += cpp, len = len > cpp ? len - cpp : 0)
+		for (j = 0, p = *pp, l = strlen(p);
+		     j < width && l > 0;
+		     ++j, p += cpp, l -= cpp)
 			for (k = 0; k < ncolors; ++k)
-				if (strncmp(p, &chars[k * cpp], cpp) == 0)
+				if (strncmp(p, chars + k * cpp, cpp) == 0)
 					for (m = 0; m < NUMMODES; ++m)
 						pixels[m * width * height + i * width + j] = colors[m * ncolors + k];
-	if (j != width || len > 0) {
+	if (j != width || l != 0) {
 		xpmerror("Actual image width too narrow");
 		goto free;
 	}
@@ -220,7 +216,7 @@ static Image process(char *xpm) {
 	Image result;
 	int xpmfd, srcfd, e, cpid, status;
 	struct stat xstat;
-	size_t len, offset;
+	size_t l, offset;
 	char *map, *p, *a, **data;
 	void *d;
 	long *sizep;
@@ -235,18 +231,18 @@ static Image process(char *xpm) {
 		xpmerror("Unable to stat `%s'", xpm);
 		goto close;
 	}
-	len = xstat.st_size;
-	if ((map = mmap(NULL, len, PROT_READ, MAP_PRIVATE, xpmfd, 0)) == MAP_FAILED) {
+	l = xstat.st_size;
+	if ((map = mmap(NULL, l, PROT_READ, MAP_PRIVATE, xpmfd, 0)) == MAP_FAILED) {
 		xpmerror("Unable to map `%s' to memory", xpm);
 		goto close;
 	}
 
-	if ((p = strnstr(map, "char", len)) == NULL) { // Skip "static" keyword
+	if ((p = strnsub(map, "char", l)) == NULL) { // Skip "static" keyword
 		xpmerror("`%s' improperly formatted", xpm);
 		goto munmap;
 	}
 	offset = p - map;
-	if ((a = arrname(p + 4, len - offset - 4)) == NULL) {
+	if ((a = arrname(p + 4, l - offset - 4)) == NULL) {
 		xpmerror("`%s' improperly formatted", xpm);
 		goto munmap;
 	}
@@ -255,7 +251,7 @@ static Image process(char *xpm) {
 		xpmerror("Unable to open `/tmp/xpm.c'");
 		goto munmap;
 	}
-	e = !writeall(srcfd, p, len - offset)
+	e = !writeall(srcfd, p, l - offset)
 	    || dprintf(srcfd, "\n\nlong size = sizeof %s / sizeof*%s;\n", a, a) < 0;
 	if (close(srcfd) == -1) {
 		xpmerror("Unable to close `/tmp/xpm.c'");
@@ -282,7 +278,8 @@ static Image process(char *xpm) {
 		goto munmap;
 	}
 	if ((data = (char **)dlsym(d, a)) == NULL) {
-		xpmerror("Unable to load image data from `/tmp/libxpm.dylib': `%s'", dlerror());
+		xpmerror("Unable to load image data from `/tmp/libxpm.dylib': `%s'",
+		         dlerror());
 		goto dlclose;
 	}
 	if ((sizep = (long *)dlsym(d, "size")) == NULL) {
@@ -298,12 +295,10 @@ dlclose:
 		xpmerror("Unable to unload `/tmp/libxpm.dylib': %s", dlerror());
 
 munmap:
-	if (munmap(map, len) == -1)
-		xpmerror("Unable to unmap `%s' from memory", xpm);
+	if (munmap(map, l) == -1) xpmerror("Unable to unmap `%s' from memory", xpm);
 
 close:
-	if (close(xpmfd) == -1)
-		xpmerror("Unable to close `%s'", xpm);
+	if (close(xpmfd) == -1) xpmerror("Unable to close `%s'", xpm);
 
 	return result;
 }
