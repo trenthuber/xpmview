@@ -6,7 +6,7 @@
 int main(void) {
 	build(NULL);
 
-	cflags = (char *[]){CFGLOBALS, CFRAYLIB, CFSRC, NULL};
+	cflags = (char *[]){CFRAYLIB, CFSRC, NULL};
 	compile("genfont", SRC "error", RLHDR, NULL);
 
 #ifndef RLDYNAMIC

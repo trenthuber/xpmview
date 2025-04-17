@@ -7,7 +7,11 @@
 	RLSRC "rtextures", RLSRC "utils", \
 	RLSRC "rcore", RLSRC "rglfw"
 
-#define CFRLPLAT "-DPLATFORM_DESKTOP"
+#ifdef RLDYNAMIC
+#define CFRLGLOBAL "-DPLATFORM_DESKTOP", "-fPIC"
+#else
+#define CFRLGLOBAL "-DPLATFORM_DESKTOP"
+#endif
 #define CFRLGLFW "-I" RLSRC "external/glfw/include"
 #ifdef __APPLE__
 #define CFRLX "-x", "objective-c"
@@ -30,11 +34,11 @@ int main(void) {
 	build(NULL);
 
 	src = (char *[]){RLSRCS, NULL};
-	cflags = (char *[]){CFRLPLAT, NULL};
+	cflags = (char *[]){CFRLGLOBAL, NULL};
 	for (i = 0; i < 6; ++i) compile(src[i], NULL);
-	cflags = (char *[]){CFRLPLAT, CFRLGLFW, NULL};
+	cflags = (char *[]){CFRLGLOBAL, CFRLGLFW, NULL};
 	compile(src[6], NULL);
-	cflags = (char *[]){CFRLPLAT, CFRLGLFW, CFRLX, NULL};
+	cflags = (char *[]){CFRLGLOBAL, CFRLGLFW, CFRLX, NULL};
 	compile(src[7], NULL);
 
 #ifdef RLDYNAMIC

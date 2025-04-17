@@ -13,7 +13,6 @@
 #define RLHDR RLSRC "raylib"
 #define RLLIB RLROOT "raylib" RLEXT
 
-#define CFGLOBALS "-Wall", "-Wextra", "-Wpedantic"
 #define CFRAYLIB "-I" RLSRC
 #define CFSRC "-I" SRC
 

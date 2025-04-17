@@ -6,7 +6,7 @@
 int main(void) {
 	build(NULL);
 
-	cflags = (char *[]){CFGLOBALS, CFSRC, NULL};
+	cflags = (char *[]){CFSRC, NULL};
 	compile("gencolors", SRC "error", NULL);
 	load('x', "gencolors", SRC "error", "gencolors", NULL);
 

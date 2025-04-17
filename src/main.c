@@ -88,8 +88,8 @@ int main(int argc, char **argv) {
 
 		ClearBackground(CLITERAL(Color){0xec, 0xec, 0xec, 0xff});
 
-		width = GetRenderWidth();
-		height = GetRenderHeight();
+		width = GetScreenWidth();
+		height = GetScreenHeight();
 		if (texture.id) {
 			scale = width * texture.height > height * texture.width
 			        ? (float)height / texture.height

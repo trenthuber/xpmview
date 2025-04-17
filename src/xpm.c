@@ -125,7 +125,7 @@ static unsigned int str2color(char **strp) {
 		return 0;
 	}
 
-	if (r > 0xffffff || r < 0) {
+	if (r > 0xffffff) {
 		xpmerror("`0x%06x' is not a valid RGB color", r);
 		return 0;
 	}
@@ -269,21 +269,21 @@ static Image process(char *xpm) {
 	}
  	if (cpid == -1 || waitpid(cpid, &status, 0) == -1
 	    || !WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-		xpmerror("Unable to create `/tmp/libxpm.dylib'");
+		xpmerror("Unable to create `/tmp/libxpm" DYEXT "'");
 		goto munmap;
 	}
 
-	if ((d = dlopen("/tmp/libxpm.dylib", 0)) == NULL) {
-		xpmerror("Unable to load `/tmp/libxpm.dylib': %s", dlerror());
+	if ((d = dlopen("/tmp/libxpm" DYEXT, RTLD_LAZY)) == NULL) {
+		xpmerror("Unable to load `/tmp/libxpm" DYEXT "': %s", dlerror());
 		goto munmap;
 	}
 	if ((data = (char **)dlsym(d, a)) == NULL) {
-		xpmerror("Unable to load image data from `/tmp/libxpm.dylib': `%s'",
+		xpmerror("Unable to load image data from `/tmp/libxpm" DYEXT "': `%s'",
 		         dlerror());
 		goto dlclose;
 	}
 	if ((sizep = (long *)dlsym(d, "size")) == NULL) {
-		xpmerror("Unable to load image length from `/tmp/libxpm.dylib': `%s'",
+		xpmerror("Unable to load image length from `/tmp/libxpm" DYEXT "': `%s'",
 		      dlerror());
 		goto dlclose;
 	}
@@ -292,7 +292,7 @@ static Image process(char *xpm) {
 
 dlclose:
 	if (dlclose(d))
-		xpmerror("Unable to unload `/tmp/libxpm.dylib': %s", dlerror());
+		xpmerror("Unable to unload `/tmp/libxpm" DYEXT "': %s", dlerror());
 
 munmap:
 	if (munmap(map, l) == -1) xpmerror("Unable to unmap `%s' from memory", xpm);
