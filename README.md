@@ -4,6 +4,9 @@ simplexpm is a simple GUI application used to view XPM image files.
 
 ## Building
 
+> [!NOTE]
+> If building on Linux, [Raylib](https://github.com/raysan5/raylib) has been configured to use X11. If you don't have X11 installed, you can either install the necessary X11 packages or change the `CFGRAPHICS` [macro](https://github.com/raysan5/raylib/blob/282d6478baa51a509bf0a4b1d761a0bd7fd8bbf7/src/rglfw.c#L32) in `build.h` to use Wayland instead.
+
 This repository uses submodules, so you'll need to clone it recursively.
 
 ```console
@@ -56,4 +59,4 @@ $ ./bin/simplexpm -f images/test.xpm
 
 Since valid XPM files are necessarily valid C source code, the most straightforward way to process the data is to just compile the file and access the pixel data directly. Integrating that into an interactive application however involves the use of dynamic libraries loading that data at runtime.
 
-The first phase of the application is to get the path name of the XPM file from the user. Once that's done, we copy the file to a temporary file, compile and link that file to a dynamic library, and then open and load the symbols from that dynamic library-all while the application is running. These symbols have all the data we need to display the image without having to parse almost any of the file itself (we do a bit of parsing to know what symbol name to call, but that's about it). Of course, we still have to parse the actual data stored in the string array, but that's very straightforward since the core standard is relatively simple (I used chapter 2 of [this manual](https://www.xfree86.org/4.8.0/xpm.pdf) as reference). Once the pixel data is parsed, a [Raylib](https://github.com/raysan5/raylib) texture is generated from it and displayed in the window.
+The first phase of the application is to get the path name of the XPM file from the user. Once that's done, we copy the file to a temporary file, compile and link that file to a dynamic library, and then open and load the symbols from that dynamic library-all while the application is running. These symbols have all the data we need to display the image without having to parse almost any of the file itself (we do a bit of parsing to know what symbol name to call, but that's about it). Of course, we still have to parse the actual data stored in the string array, but that's very straightforward since the core standard is relatively simple (I used chapter 2 of [this manual](https://www.xfree86.org/4.8.0/xpm.pdf) as reference). Once the pixel data is parsed, a Raylib texture is generated from it and displayed in the window.
