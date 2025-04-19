@@ -7,22 +7,22 @@
 	RLSRC "rtextures", RLSRC "utils", \
 	RLSRC "rcore", RLSRC "rglfw"
 
-#ifdef RLDYNAMIC
-#define CFRLGLOBAL "-DPLATFORM_DESKTOP", "-fPIC"
-#else
-#define CFRLGLOBAL "-DPLATFORM_DESKTOP"
-#endif
-#define CFRLGLFW "-I" RLSRC "external/glfw/include"
 #ifdef __APPLE__
-#define CFRLX "-x", "objective-c"
+#define CFGRAPHICS "-x", "objective-c"
 #else
-#define CFRLX "-D_GLFW_X11"
+#define CFGRAPHICS "-D_GLFW_X11"
+#endif
+#define CFGLFW "-I" RLSRC "external/glfw/include"
+#ifdef RLDYNAMIC
+#define CFGLOBALS "-DPLATFORM_DESKTOP", "-fPIC"
+#else
+#define CFGLOBALS "-DPLATFORM_DESKTOP"
 #endif
 
 #ifdef RLDYNAMIC
-#define RLTYPE 'd'
+#define LIBTYPE 'd'
 #else
-#define RLTYPE 's'
+#define LIBTYPE 's'
 #endif
 
 #include "cbs/cbs.c"
@@ -34,17 +34,15 @@ int main(void) {
 	build(NULL);
 
 	src = (char *[]){RLSRCS, NULL};
-	cflags = (char *[]){CFRLGLOBAL, NULL};
+	cflags = (char *[]){CFGLOBALS, NULL};
 	for (i = 0; i < 6; ++i) compile(src[i], NULL);
-	cflags = (char *[]){CFRLGLOBAL, CFRLGLFW, NULL};
+	cflags = (char *[]){CFGLFW, CFGLOBALS, NULL};
 	compile(src[6], NULL);
-	cflags = (char *[]){CFRLGLOBAL, CFRLGLFW, CFRLX, NULL};
+	cflags = (char *[]){CFGRAPHICS, CFGLFW, CFGLOBALS, NULL};
 	compile(src[7], NULL);
 
-#ifdef RLDYNAMIC
-	lflags = (char *[]){LFRAYLIB, NULL};
-#endif
-	load(RLTYPE, RLLIB, RLSRCS, NULL);
+	lflags = (char *[]){LFEXTERNAL, NULL};
+	load(LIBTYPE, RLLIB, RLSRCS, NULL);
 
-	return 0;
+	return EXIT_SUCCESS;
 }

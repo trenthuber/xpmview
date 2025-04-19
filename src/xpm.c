@@ -2,9 +2,13 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
-#include "error.h"
 #include "raylib.h"
+#include "utilities.h"
 #include "xpm.h"
+
+#define TMP "/tmp/xpm"
+#define TMPSRC TMP ".c"
+#define TMPLIB "/tmp/libxpm" DYEXT
 
 #include "cbs.c"
 #include "colors.c"
@@ -19,15 +23,6 @@ static char *strnsub(char *str, char *sub, size_t l) {
 
 static int space(char c) {
 	return c == ' ' || c == '\t';
-}
-
-static void *zalloc(size_t s) {
-	void *r;
-
-	if ((r  = calloc(1, s))) return r;
-
-	xpmerror("Memory allocation");
-	exit(EXIT_FAILURE);
 }
 
 static char *arrname(char *p, size_t l) {
@@ -45,7 +40,7 @@ static char *arrname(char *p, size_t l) {
 	start = p;
 	for (; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
 	l = p - start;
-	r = zalloc(l + 1);
+	r = xpmalloc(l + 1);
 	strncpy(r, start, l);
 
 	return r;
@@ -69,9 +64,6 @@ static int key2mode(char **strp) {
 	case 'm':
 		r = MODEM;
 		break;
-	case 's':
-		r = SYMBOLIC;
-		break;
 	case 'g':
 		if (**strp == '4') {
 			++*strp;
@@ -86,6 +78,9 @@ static int key2mode(char **strp) {
 	default:
 		xpmerror("Unknown key `%c'", *(*strp - 1));
 		r = NUMMODES;
+		break;
+	case 's':
+		r = SYMBOLIC;
 	}
 
 	while (space(**strp)) ++*strp;
@@ -158,8 +153,8 @@ static Image parse(char **data, long *sizep) {
 	}
 
 	// Colors
-	chars = zalloc(ncolors * cpp * sizeof*chars);
-	colors = zalloc(NUMMODES * ncolors * sizeof*colors);
+	chars = xpmalloc(ncolors * cpp * sizeof*chars);
+	colors = xpmalloc(NUMMODES * ncolors * sizeof*colors);
 	for (i = 0; i < ncolors; ++i) {
 		p = data[1 + i];
 		strncpy(chars + i * cpp, p, cpp);
@@ -179,7 +174,7 @@ static Image parse(char **data, long *sizep) {
 	}
 
 	// Pixels
-	pixels = zalloc(NUMMODES * height * width * sizeof*pixels);
+	pixels = xpmalloc(NUMMODES * height * width * sizeof*pixels);
 	j = width;
 	l = 0;
 	for (i = 0, pp = &data[1 + ncolors];
@@ -217,7 +212,7 @@ static Image process(char *xpm) {
 	int xpmfd, srcfd, e, cpid, status;
 	struct stat xstat;
 	size_t l, offset;
-	char *map, *p, *a, **data;
+	char *map, *p, *a, *tmp, **data;
 	void *d;
 	long *sizep;
 
@@ -247,52 +242,49 @@ static Image process(char *xpm) {
 		goto munmap;
 	}
 
-	if ((srcfd = open("/tmp/xpm.c", O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
-		xpmerror("Unable to open `/tmp/xpm.c'");
+	if ((srcfd = open(TMPSRC, O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
+		xpmerror("Unable to open `" TMPSRC "'");
 		goto munmap;
 	}
 	e = !writeall(srcfd, p, l - offset)
 	    || dprintf(srcfd, "\n\nlong size = sizeof %s / sizeof*%s;\n", a, a) < 0;
 	if (close(srcfd) == -1) {
-		xpmerror("Unable to close `/tmp/xpm.c'");
+		xpmerror("Unable to close `" TMPSRC "'");
 		goto munmap;
 	}
 	if (e) {
-		xpmerror("Unable to write to `/tmp/xpm.c'");
+		xpmerror("Unable to write to `" TMPSRC "'");
 		goto munmap;
 	}
 
 	if ((cpid = fork()) == 0) {
-		compile("/tmp/xpm", NULL);
-		load('d', "/tmp/xpm", "/tmp/xpm", NULL);
+		compile(TMP, NULL);
+		load('d', TMP, TMP, NULL);
 		exit(EXIT_SUCCESS);
 	}
  	if (cpid == -1 || waitpid(cpid, &status, 0) == -1
 	    || !WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) {
-		xpmerror("Unable to create `/tmp/libxpm" DYEXT "'");
+		xpmerror("Unable to create `" TMPLIB "'");
 		goto munmap;
 	}
 
-	if ((d = dlopen("/tmp/libxpm" DYEXT, RTLD_LAZY)) == NULL) {
-		xpmerror("Unable to load `/tmp/libxpm" DYEXT "': %s", dlerror());
+	if ((d = dlopen(TMPLIB, RTLD_LAZY)) == NULL) {
+		xpmerror("Unable to load `" TMPLIB "': %s", dlerror());
 		goto munmap;
 	}
 	if ((data = (char **)dlsym(d, a)) == NULL) {
-		xpmerror("Unable to load image data from `/tmp/libxpm" DYEXT "': `%s'",
-		         dlerror());
+		xpmerror("Unable to load image data from `" TMPLIB "': `%s'", dlerror());
 		goto dlclose;
 	}
 	if ((sizep = (long *)dlsym(d, "size")) == NULL) {
-		xpmerror("Unable to load image length from `/tmp/libxpm" DYEXT "': `%s'",
-		      dlerror());
+		xpmerror("Unable to load image length from `" TMPLIB "': `%s'", dlerror());
 		goto dlclose;
 	}
 
 	result = parse(data, sizep);
 
 dlclose:
-	if (dlclose(d))
-		xpmerror("Unable to unload `/tmp/libxpm" DYEXT "': %s", dlerror());
+	if (dlclose(d)) xpmerror("Unable to unload `" TMPLIB "': %s", dlerror());
 
 munmap:
 	if (munmap(map, l) == -1) xpmerror("Unable to unmap `%s' from memory", xpm);

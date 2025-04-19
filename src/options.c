@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "error.h"
+#include "utilities.h"
 
 static void usage(char *prog, int fd) {
 	dprintf(fd, "Usage: %s [-dh] [-f file]\n"
@@ -21,25 +21,26 @@ static void usage(char *prog, int fd) {
 	        "\t c        Color visual mode\n", prog);
 }
 
-int options(int argc, char **argv, int *debug, char **xpmp) {
+int options(int argc, char **argv, int *debug, char **xp) {
 	int opt, result, dnfd;
 
 	*debug = 0;
-	*xpmp = NULL;
+	*xp = NULL;
 	while ((opt = getopt(argc, argv, "df:h")) != -1) switch (opt) {
 	case 'd':
 		*debug = 1;
 		break;
 	case 'f':
-		*xpmp = strdup(optarg);
+		*xp = xpmalloc(FILENAME_MAX);
+		strcpy(*xp, optarg);
 		break;
 	case 'h':
 		usage(argv[0], STDOUT_FILENO);
-		exit(0);
+		exit(EXIT_SUCCESS);
 	case '?':
 	default:
 		usage(argv[0], STDERR_FILENO);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	result = 1;
@@ -53,7 +54,7 @@ int options(int argc, char **argv, int *debug, char **xpmp) {
 			result = 0;
 		} else if (dup2(dnfd, STDOUT_FILENO) == -1) {
 			xpmerror("Unable to redirect stdout to `/dev/null'");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		if (close(dnfd) == -1) {
 			xpmerror("Unable to close `/dev/null'");

@@ -1,19 +1,23 @@
-#include <stdio.h>
 #include <stdlib.h>
 
-#include "error.h"
 #include "raylib.h"
+#include "utilities.h"
 
-int main(void) {
+int main(int argc, char **argv) {
 	Font font;
+
+	if (argc != 3) {
+		xpmerror("Incorrect number of arguments: %s <input.ttf> <output.c>", argv[0]);
+		return EXIT_FAILURE;
+	}
 
 	SetTraceLogLevel(LOG_WARNING);
 	InitWindow(0, 0, "");
 
-	font = LoadFontEx("font.ttf", 48, NULL, 95);
-	if (!ExportFontAsCode(font, "../font.c")) {
-		xpmerror("Unable to generate `font.c' from `font.ttf'");
-		exit(EXIT_FAILURE);
+	font = LoadFontEx(argv[1], 48, NULL, 95);
+	if (!ExportFontAsCode(font, argv[2])) {
+		xpmerror("Unable to generate `%s' from `%s'", argv[2], argv[1]);
+		return EXIT_FAILURE;
 	}
 
 	UnloadFont(font);
@@ -22,5 +26,5 @@ int main(void) {
 	 * the transient application we open to load the font
 	 */
 
-	return 0;
+	return EXIT_SUCCESS;
 }

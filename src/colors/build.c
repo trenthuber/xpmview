@@ -1,18 +1,20 @@
 #define ROOT "../../"
 #include "../../build.h"
 
+#define COLORS SRC "colors.c"
+
 #include "../../external/cbs/cbs.c"
 
 int main(void) {
 	build(NULL);
 
 	cflags = (char *[]){CFSRC, NULL};
-	compile("gencolors", SRC "error", NULL);
-	load('x', "gencolors", SRC "error", "gencolors", NULL);
+	compile("gencolors", UTILS, NULL);
+	load('x', "gencolors", "gencolors", UTILS, NULL);
 
-	if (modified(SRC "colors.c", "gencolors.c")
-	    || modified(SRC "colors.c", "rgb.txt"))
-		run("gencolors", (char *[]){"./gencolors", NULL}, "execution", "gencolors");
+	if (modified(COLORS, "gencolors.c") || modified(COLORS, "rgb.txt"))
+		run("gencolors", (char *[]){"./gencolors", "rgb.txt", COLORS, NULL},
+		    "execution", "gencolors");
 
-	return 0;
+	return EXIT_SUCCESS;
 }
