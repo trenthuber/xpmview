@@ -1,5 +1,5 @@
 /* Switch the following #define to change whether or not raylib is built as a
- * static or dynamic library; be sure to `./clean' before you `./build' again.
+ * static or dynamic library; be sure to `clean' before you `build' again.
  */
 // #define RLDYNAMIC
 

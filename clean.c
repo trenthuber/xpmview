@@ -38,7 +38,7 @@ int main(void) {
 	                   (char *[3]){COLORS, FONT}, (char *[3]){whos[3]}};
 	for (i = 0; i < 4; ++i) {
 		if ((cpid = fork()) == 0)
-			run(RM, (char *[]){"rm", rms[i][0], rms[i][1], rms[i][2], NULL},
+			run(RM, (char *[]){"rm", "-f", rms[i][0], rms[i][1], rms[i][2], NULL},
 			    what, whos[i]);
 		await(cpid, what, whos[i]);
 	}
