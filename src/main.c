@@ -1,18 +1,12 @@
-#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <unistd.h>
 
+#include "cbs.h"
 #include "options.h"
 #define SUPPORT_IMAGE_EXPORT
 #include "raylib.h"
-#include "utilities.h"
 #include "xpm.h"
-
-extern bool isGpuReady;
 
 #include "font.c"
 
@@ -25,7 +19,7 @@ static void getinput(char **xp, Texture2D *tp, Image *ip) {
 	if (IsFileDropped()) {
 		files = LoadDroppedFiles();
 		if (*xp) RL_FREE(*xp);
-		*xp = xpmalloc(FILENAME_MAX);
+		*xp = allocate(FILENAME_MAX);
 		strcpy(*xp, files.paths[0]);
 		UnloadDroppedFiles(files);
 		*tp = gettexture(*xp, ip, mode);

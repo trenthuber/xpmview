@@ -1,24 +1,21 @@
+#include <err.h>
 #include <stdlib.h>
 
 #include "raylib.h"
-#include "utilities.h"
 
 int main(int argc, char **argv) {
 	Font font;
 
-	if (argc != 3) {
-		xpmerror("Incorrect number of arguments: %s <input.ttf> <output.c>", argv[0]);
-		return EXIT_FAILURE;
-	}
+	if (argc != 3)
+		errx(EXIT_FAILURE, "Incorrect number of arguments: %s <input.ttf> <output.c>",
+		     argv[0]);
 
 	SetTraceLogLevel(LOG_WARNING);
 	InitWindow(0, 0, "");
 
 	font = LoadFontEx(argv[1], 48, NULL, 95);
-	if (!ExportFontAsCode(font, argv[2])) {
-		xpmerror("Unable to generate `%s' from `%s'", argv[2], argv[1]);
-		return EXIT_FAILURE;
-	}
+	if (!ExportFontAsCode(font, argv[2]))
+		errx(EXIT_FAILURE, "Unable to generate `%s' from `%s'", argv[2], argv[1]);
 
 	UnloadFont(font);
 

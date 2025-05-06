@@ -1,42 +1,32 @@
 /* Switch the following #define to change whether or not raylib is built as a
  * static or dynamic library; be sure to `clean' before you `build' again.
  */
-// #define RLDYNAMIC
+// #define DYNAMICLIBS
 
-#ifdef RLDYNAMIC
-#define RLEXT DYEXT
+#ifdef DYNAMICLIBS
+#define LIBEXT DYEXT
 #else
-#define RLEXT ".a"
+#define LIBEXT ".a"
 #endif
 
-#define CBSPATH ROOT "external/cbs/"
-#define CBS CBSPATH "cbs.c"
+#define CBSROOT ROOT "external/cbs/"
+#define CBSLIB CBSROOT "cbs" LIBEXT
 #define RLROOT ROOT "external/raylib/"
-#define RLLIB RLROOT "raylib" RLEXT
+#define RLLIB RLROOT "raylib" LIBEXT
 #define RLSRC RLROOT "src/"
 #define RLHDR RLSRC "raylib"
 #define SIMPLEXPM ROOT "bin/simplexpm"
 #define SRC ROOT "src/"
-#define UTILS SRC "utilities"
 
-#define CFCBS "-I" CBSPATH
 #define CFRAYLIB "-I" RLSRC
-#define CFSRC "-I" SRC
 
 #ifdef __APPLE__
-#define RLLFLAGS \
+#define LFRAYLIB \
 	"-framework", "Cocoa", \
 	"-framework", "CoreVideo", \
 	"-framework", "GLUT", \
 	"-framework", "IOKit", \
 	"-framework", "OpenGL"
 #else
-#define RLLFLAGS "-lm"
-#endif
-#ifdef RLDYNAMIC
-#define LFEXTERNAL RLLFLAGS
-#define LFRAYLIB NULL
-#else
-#define LFEXTERNAL NULL
-#define LFRAYLIB RLLFLAGS
+#define LFRAYLIB "-lm"
 #endif

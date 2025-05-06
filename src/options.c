@@ -1,10 +1,11 @@
+#include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "utilities.h"
+#include "cbs.h"
 
 static void usage(char *prog, int fd) {
 	dprintf(fd, "Usage: %s [-dh] [-f file]\n"
@@ -31,7 +32,7 @@ int options(int argc, char **argv, int *debug, char **xp) {
 		*debug = 1;
 		break;
 	case 'f':
-		*xp = xpmalloc(FILENAME_MAX);
+		*xp = allocate(FILENAME_MAX);
 		strcpy(*xp, optarg);
 		break;
 	case 'h':
@@ -46,18 +47,18 @@ int options(int argc, char **argv, int *debug, char **xp) {
 	result = 1;
 	if (!*debug) {
 		if ((dnfd = open("/dev/null", O_WRONLY)) == -1) {
-			xpmerror("Unable to open `/dev/null'; showing debug messages");
-			return 0;
+			warn("Unable to open `/dev/null'; showing debug messages");
+			return result;
 		}
 		if (close(STDOUT_FILENO) == -1) {
-			xpmerror("Unable to close stdout");
+			warn("Unable to close stdout");
 			result = 0;
 		} else if (dup2(dnfd, STDOUT_FILENO) == -1) {
-			xpmerror("Unable to redirect stdout to `/dev/null'");
-			exit(EXIT_FAILURE);
+			warn("Unable to redirect stdout to `/dev/null'");
+			result = 0;
 		}
 		if (close(dnfd) == -1) {
-			xpmerror("Unable to close `/dev/null'");
+			warn("Unable to close `/dev/null'");
 			result = 0;
 		}
 	}

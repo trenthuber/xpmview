@@ -15,7 +15,7 @@ int main(void) {
 	size_t i;
 	pid_t cpid;
 
-	what = "removal";
+	what = "remove";
 
 	// Remove build executables and object files
 	whos = (char *[2]){"{*/*build,*/*/*build}", "{*/*.o,*/*/*.o,*/*/*/*.o}"};
@@ -27,16 +27,16 @@ int main(void) {
 		await(cpid, what, whos[i]);
 	}
 
-	/* Remove raylib library, application executables,
+	/* Remove cbs and raylib libraries, application executables,
 	 * automatically generated source files, and ourself
 	 */
-	whos = (char *[4]){extend(RLLIB, RLEXT),
+	whos = (char *[5]){extend(CBSLIB, LIBEXT), extend(RLLIB, LIBEXT),
 	                   "{" GENCOLORS "," GENFONT "," SIMPLEXPM "}",
 	                   "{" COLORS "," FONT "}", "clean"};
-	rms = (char **[4]){(char *[3]){whos[0]},
+	rms = (char **[5]){(char *[3]){whos[0]}, (char *[3]){whos[1]},
 	                   (char *[3]){GENCOLORS, GENFONT, SIMPLEXPM},
-	                   (char *[3]){COLORS, FONT}, (char *[3]){whos[3]}};
-	for (i = 0; i < 4; ++i) {
+	                   (char *[3]){COLORS, FONT}, (char *[3]){whos[4]}};
+	for (i = 0; i < 5; ++i) {
 		if ((cpid = fork()) == 0)
 			run(RM, (char *[]){"rm", "-f", rms[i][0], rms[i][1], rms[i][2], NULL},
 			    what, whos[i]);

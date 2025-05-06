@@ -1,6 +1,9 @@
 #define ROOT "../"
 #include "../build.h"
 
+#include "cbs/cbs.c"
+
+#define CBSSRC CBSROOT "cbs"
 #define RLSRCS \
 	RLSRC "raudio", RLSRC "rmodels", \
 	RLSRC "rshapes", RLSRC "rtext", \
@@ -13,25 +16,33 @@
 #define CFGRAPHICS "-D_GLFW_X11"
 #endif
 #define CFGLFW "-I" RLSRC "external/glfw/include"
-#ifdef RLDYNAMIC
-#define CFGLOBALS "-DPLATFORM_DESKTOP", "-fPIC"
+#ifdef DYNAMICLIBS
+#define CFPIC "-fPIC"
 #else
-#define CFGLOBALS "-DPLATFORM_DESKTOP"
+#define CFPIC NULL
+#endif
+#define CFGLOBALS "-DPLATFORM_DESKTOP", CFPIC
+
+#ifndef DYNAMICLIBS
+#undef LFRAYLIB
+#define LFRAYLIB NULL
 #endif
 
-#ifdef RLDYNAMIC
+#ifdef DYNAMICLIBS
 #define LIBTYPE 'd'
 #else
 #define LIBTYPE 's'
 #endif
 
-#include "cbs/cbs.c"
+void cbs(void) {
+	cflags = (char *[]){CFPIC, NULL};
+	compile(CBSSRC, NULL);
+	load(LIBTYPE, CBSLIB, CBSSRC, NULL);
+}
 
-int main(void) {
+void raylib(void) {
 	char **src;
 	size_t i;
-
-	build(NULL);
 
 	src = (char *[]){RLSRCS, NULL};
 	cflags = (char *[]){CFGLOBALS, NULL};
@@ -41,8 +52,15 @@ int main(void) {
 	cflags = (char *[]){CFGRAPHICS, CFGLFW, CFGLOBALS, NULL};
 	compile(src[7], NULL);
 
-	lflags = (char *[]){LFEXTERNAL, NULL};
+	lflags = (char *[]){LFRAYLIB, NULL};
 	load(LIBTYPE, RLLIB, RLSRCS, NULL);
+}
+
+int main(void) {
+	build(NULL);
+
+	cbs();
+	raylib();
 
 	return EXIT_SUCCESS;
 }
