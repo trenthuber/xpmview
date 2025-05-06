@@ -9,6 +9,7 @@ int main(void) {
 	build(NULL);
 
 	compile("gencolors", NULL);
+
 	load('x', "gencolors", "gencolors", NULL);
 
 	if (modified(COLORS, "gencolors.c") || modified(COLORS, "rgb.txt"))

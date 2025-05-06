@@ -37,6 +37,7 @@
 void cbs(void) {
 	cflags = (char *[]){CFPIC, NULL};
 	compile(CBSSRC, NULL);
+
 	load(LIBTYPE, CBSLIB, CBSSRC, NULL);
 }
 

@@ -1,14 +1,14 @@
 #define ROOT
 #include "build.h"
 
-#define COLORS SRC "colors.c"
+#include "external/cbs/cbs.c"
+
 #define FIND "/usr/bin/find"
-#define FONT SRC "font.c"
+#define RM "/bin/rm"
 #define GENCOLORS SRC "colors/gencolors"
 #define GENFONT SRC "font/genfont"
-#define RM "/bin/rm"
-
-#include "external/cbs/cbs.c"
+#define COLORS SRC "colors.c"
+#define FONT SRC "font.c"
 
 int main(void) {
 	char *what, **whos, **regexes, ***rms;
