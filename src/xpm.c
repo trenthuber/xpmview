@@ -36,10 +36,10 @@ static char *arrname(char *p, size_t l) {
 
 	for (; (step = 5); l = l > step ? l - step : 0, p += step) {
 		if (l == 0) return NULL;
-		if (space(*p) || *p == '*') step = 1;
-		else if (strncmp(p, "const", 5) != 0
-		         || (!space(*(p + step)) && *(p + step) != '*'))
-			break;
+		if (space(*p) || *p == '*') step = 1; else
+			if (strncmp(p, "const", 5) != 0
+			    || (!space(*(p + step)) && *(p + step) != '*'))
+				break;
 	}
 
 	start = p;
@@ -108,18 +108,18 @@ static unsigned int str2color(char **strp) {
 	l = i = 0;
 
 	// RGB
-	if (**strp == '#') r = strtol(++*strp, strp, 16);
+	if (**strp == '#') r = strtol(++*strp, strp, 16); else
 
-	// Color names
-	else for (; i < numcolors; ++i) {
-		name = colors[i].name;
-		l = strlen(name);
-		if (strncmp(name, *strp, l) == 0
-		    && (i == 0 || *(*strp + l) == '\0' || space(*(*strp + l)))) {
-			r = colors[i].value;
-			break;
+		// Color names
+		for (; i < numcolors; ++i) {
+			name = colors[i].name;
+			l = strlen(name);
+			if (strncmp(name, *strp, l) == 0
+			    && (i == 0 || *(*strp + l) == '\0' || space(*(*strp + l)))) {
+				r = colors[i].value;
+				break;
+			}
 		}
-	}
 	if (i == numcolors) {
 		warnx("`%s' is not a valid color name", *strp);
 		return 0;
