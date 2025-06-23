@@ -5,7 +5,7 @@ simplexpm is a simple GUI application used to view XPM image files.
 ## Building
 
 > [!NOTE]
-> If building on Linux, [Raylib](https://github.com/raysan5/raylib) has been configured to use X11. If you don't have X11 installed, you can either install the necessary X11 packages or change the `CFGRAPHICS` [macro](https://github.com/raysan5/raylib/blob/282d6478baa51a509bf0a4b1d761a0bd7fd8bbf7/src/rglfw.c#L32) in `build.h` to use Wayland instead.
+> If building on Linux, [Raylib](https://github.com/raysan5/raylib) has been configured to use X11. If you don't have X11 installed, you can either install the necessary X11 packages or change the `CFGRAPHICS` [macro](https://github.com/raysan5/raylib/blob/282d6478baa51a509bf0a4b1d761a0bd7fd8bbf7/src/rglfw.c#L32) in `external/build.c` to use Wayland instead.
 
 This repository uses submodules, so you'll need to clone it recursively.
 
