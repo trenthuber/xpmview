@@ -100,8 +100,8 @@ static void buildfont(void) {
 	lflags = LLRAYLIB;
 	load('x', "buildfont", LIST("buildfont", RLLIB));
 
-	if ((cpid = fork()) == 0)
-		run("buildfont", LIST("buildfont"), "run", "buildfont");
+	if ((cpid = fork()) == -1) err(EXIT_FAILURE, "Unable to fork");
+	else if (cpid == 0) run("buildfont", LIST("buildfont"), "run", "buildfont");
 	await(cpid, "run", "buildfont");
 
 	cflags = c;

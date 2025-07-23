@@ -217,7 +217,7 @@ static Image process(char *xpm) {
 	int xpmfd, srcfd, e, cpid, status;
 	struct stat xstat;
 	size_t l, offset;
-	char *map, *p, *a, *tmp, **data;
+	char *map, *p, *a, *src, *lib, **data;
 	void *d;
 	long *sizep;
 
@@ -246,42 +246,55 @@ static Image process(char *xpm) {
 		goto munmap;
 	}
 
-	if ((srcfd = open(TMPSRC, O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
-		warn("Unable to open `" TMPSRC "'");
+	src = "/tmp/xpm.c";
+	if ((srcfd = open(src, O_WRONLY | O_CREAT | O_TRUNC, 0644)) == -1) {
+		warn("Unable to open `%s'", src);
 		goto munmap;
 	}
 	e = !writeall(srcfd, p, l - offset)
 	    || dprintf(srcfd, "\n\nlong size = sizeof %s / sizeof*%s;\n", a, a) < 0;
 	if (close(srcfd) == -1) {
-		warn("Unable to close `" TMPSRC "'");
+		warn("Unable to close `%s'", src);
 		goto munmap;
 	}
 	if (e) {
-		warn("Unable to write to `" TMPSRC "'");
+		warn("Unable to write to `%s'", src);
 		goto munmap;
 	}
 
-	if ((cpid = fork()) == 0) {
-		compile(TMP);
-		load('d', TMP, LIST(TMP));
-		exit(EXIT_SUCCESS);
+	lib = "/tmp/libxpm" DYEXT;
+	if ((cpid = fork()) == -1) {
+		warn("Unable to fork process to create `%s'", lib);
+		goto munmap;
+	} else if (cpid == 0) {
+		cflags = NONE;
+		compile("/tmp/xpm");
+
+		lflags = NONE;
+		load('d', "/tmp/xpm", LIST("/tmp/xpm"));
+
+		_exit(EXIT_SUCCESS);
 	}
  	if (cpid == -1 || waitpid(cpid, &status, 0) == -1) {
-		warn("Unable to create `" TMPLIB "'");
+		warn("Creation of `%s' terminated unexpectedly", lib);
 		goto munmap;
 	}
-	if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS) goto munmap;
+	if (WIFEXITED(status) && WEXITSTATUS(status) != EXIT_SUCCESS
+	    || WIFSIGNALED(status)) {
+		warnx("Creation of `%s' was unsuccessful", lib);
+		goto munmap;
+	}
 
-	if ((d = dlopen(TMPLIB, RTLD_LAZY)) == NULL) {
-		warnx("Unable to load `" TMPLIB "': %s", dlerror());
+	if ((d = dlopen(lib, RTLD_LAZY)) == NULL) {
+		warnx("Unable to load `%s': %s", lib, dlerror());
 		goto munmap;
 	}
 	if ((data = (char **)dlsym(d, a)) == NULL) {
-		warnx("Unable to load image data from `" TMPLIB "': `%s'", dlerror());
+		warnx("Unable to load image data from `%s': `%s'", lib, dlerror());
 		goto dlclose;
 	}
 	if ((sizep = (long *)dlsym(d, "size")) == NULL) {
-		warnx("Unable to load image size from `" TMPLIB "': `%s'", dlerror());
+		warnx("Unable to load image size from `%s': `%s'", lib, dlerror());
 		goto dlclose;
 	}
 
@@ -289,7 +302,7 @@ static Image process(char *xpm) {
 
 dlclose:
 	if (dlclose(d)) {
-		warnx("Unable to unload `" TMPLIB "': %s", dlerror());
+		warnx("Unable to unload `%s': %s", lib, dlerror());
 		result.mipmaps = 0;
 	}
 
