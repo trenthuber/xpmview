@@ -1,67 +1,70 @@
-#define ROOT "../"
 #include "../build.h"
-
 #include "cbs/cbs.c"
+#include "cbsfile.c"
 
-#define CBSSRC CBSROOT "cbs"
-#define RLSRCS \
-	RLSRC "raudio", RLSRC "rmodels", \
-	RLSRC "rshapes", RLSRC "rtext", \
-	RLSRC "rtextures", RLSRC "utils", \
-	RLSRC "rcore", RLSRC "rglfw"
-
+#define CFGLFW "-I" RLSRC "external/glfw/include"
 #ifdef __APPLE__
 #define CFGRAPHICS "-x", "objective-c"
 #else
 #define CFGRAPHICS "-D_GLFW_X11"
 #endif
-#define CFGLFW "-I" RLSRC "external/glfw/include"
 #ifdef DYNAMICLIBS
-#define CFPIC "-fPIC"
-#else
-#define CFPIC NULL
-#endif
-#define CFGLOBALS "-DPLATFORM_DESKTOP", CFPIC
-
-#ifndef DYNAMICLIBS
-#undef LFRAYLIB
-#define LFRAYLIB NULL
-#endif
-
-#ifdef DYNAMICLIBS
+#define CLPIC LIST("-fPIC")
+#define CFGENERAL "-DPLATFORM_DESKTOP", "-fPIC"
 #define LIBTYPE 'd'
+#define LLRAYLIB LIST(LFRAYLIB)
 #else
+#define CLPIC NONE
+#define CFGENERAL "-DPLATFORM_DESKTOP"
 #define LIBTYPE 's'
+#define LLRAYLIB NONE
 #endif
 
-void cbs(void) {
-	cflags = (char *[]){CFPIC, NULL};
-	compile(CBSSRC, NULL);
+#define RLLIB "raylib/raylib"
+#define RLSRC "raylib/src/"
 
-	load(LIBTYPE, CBSLIB, CBSSRC, NULL);
+void buildcbs(void) {
+	char **c, **l;
+
+	c = cflags;
+	l = lflags;
+
+	cflags = CLPIC;
+	compile("cbs/cbs");
+
+	lflags = NONE;
+	load(LIBTYPE, "cbs/cbs", LIST("cbs/cbs"));
+
+	cflags = c;
+	lflags = l;
 }
 
-void raylib(void) {
-	char **src;
-	size_t i;
+void buildraylib(void) {
+	struct cbsfile *files;
 
-	src = (char *[]){RLSRCS, NULL};
-	cflags = (char *[]){CFGLOBALS, NULL};
-	for (i = 0; i < 6; ++i) compile(src[i], NULL);
-	cflags = (char *[]){CFGLFW, CFGLOBALS, NULL};
-	compile(src[6], NULL);
-	cflags = (char *[]){CFGRAPHICS, CFGLFW, CFGLOBALS, NULL};
-	compile(src[7], NULL);
+	files = (struct cbsfile []){
+		{RLLIB, LLRAYLIB, LIBTYPE},
 
-	lflags = (char *[]){LFRAYLIB, NULL};
-	load(LIBTYPE, RLLIB, RLSRCS, NULL);
+		{RLSRC "raudio", LIST(CFGENERAL)},
+		{RLSRC "rcore", LIST(CFGLFW, CFGENERAL)},
+		{RLSRC "rglfw", LIST(CFGLFW, CFGRAPHICS, CFGENERAL)},
+		{RLSRC "rmodels", LIST(CFGENERAL)},
+		{RLSRC "rshapes", LIST(CFGENERAL)},
+		{RLSRC "rtext", LIST(CFGENERAL)},
+		{RLSRC "rtextures", LIST(CFGENERAL)},
+		{RLSRC "utils", LIST(CFGENERAL)},
+
+		{NULL}
+	};
+
+	buildfiles(files);
 }
 
 int main(void) {
-	build(NULL);
+	build("./");
 
-	cbs();
-	raylib();
+	buildcbs();
+	buildraylib();
 
 	return EXIT_SUCCESS;
 }

@@ -1,3 +1,2 @@
-*build
 *.o
-clean
+*build

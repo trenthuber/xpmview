@@ -51,9 +51,9 @@ If modifications are made to the XPM file while loaded, hitting `r` reloads the 
 Finally, with an XPM file loaded, color modes can be changed by pressing corresponding keys (see a complete list of key bindings by using the `-h` flag).
 
 ```console
-$ ./bin/simplexpm -f images/test.xpm
+$ ./bin/simplexpm -f assets/test.xpm
 ```
-![Here's an image of the above command running on my machine.](images/application.png "Running the above command")
+![Here's an image of the above command running on my machine.](assets/application.png "Running the above command")
 
 ## Theory of Operation
 

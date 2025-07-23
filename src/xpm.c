@@ -262,8 +262,8 @@ static Image process(char *xpm) {
 	}
 
 	if ((cpid = fork()) == 0) {
-		compile(TMP, NULL);
-		load('d', TMP, TMP, NULL);
+		compile(TMP);
+		load('d', TMP, LIST(TMP));
 		exit(EXIT_SUCCESS);
 	}
  	if (cpid == -1 || waitpid(cpid, &status, 0) == -1) {
