@@ -91,17 +91,12 @@ int main(int argc, char **argv) {
 			scale = width * texture->height > height * texture->width
 			        ? (float)height / texture->height
 			        : (float)width / texture->width;
-			pos = CLITERAL(Vector2){
-			      	(width - texture->width * scale) / 2,
-			      	(height - texture->height * scale) / 2,
-			      };
+			pos = CLITERAL(Vector2){(width - texture->width * scale) / 2,
+			                        (height - texture->height * scale) / 2};
 			DrawTextureEx(*texture, pos, 0, scale, WHITE);
 		} else {
 			dim = MeasureTextEx(font, xpm ? error : welcome, font.baseSize, 0);
-			pos = (Vector2){
-			      	.x = (width - dim.x) / 2,
-			      	.y = (height - dim.y) / 2,
-			      };
+			pos = CLITERAL(Vector2){(width - dim.x) / 2, (height - dim.y) / 2};
 			DrawTextEx(font, xpm ? error : welcome, pos, font.baseSize, 0, BLACK);
 		}
 

@@ -114,19 +114,17 @@ int main(void) {
 	buildcolors();
 	buildfont();
 
-	buildfiles((struct cbsfile []){
-	           	{"../bin/simplexpm", LLRAYLIB, 'x'},
+	buildfiles((struct cbsfile []){{"../bin/simplexpm", LLRAYLIB, 'x'},
 
-	           	{"colors", NONE},
-	           	{"main", CLRAYLIB},
-	           	{"options", NONE},
-	           	{"xpm", CLRAYLIB},
+	                               {"colors", NONE},
+	                               {"main", CLRAYLIB},
+	                               {"options", NONE},
+	                               {"xpm", CLRAYLIB},
 
-	           	{CBSLIB},
-	           	{RLLIB},
+	                               {CBSLIB},
+	                               {RLLIB},
 
-	           	{NULL}
-	           });
+	                               {NULL}});
 
 	return EXIT_SUCCESS;
 }
