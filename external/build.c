@@ -40,24 +40,20 @@ void buildcbs(void) {
 }
 
 void buildraylib(void) {
-	struct cbsfile *files;
+	buildfiles((struct cbsfile []){
+	           	{RLLIB, LLRAYLIB, LIBTYPE},
 
-	files = (struct cbsfile []){
-		{RLLIB, LLRAYLIB, LIBTYPE},
+	           	{RLSRC "raudio", LIST(CFGENERAL)},
+	           	{RLSRC "rcore", LIST(CFGLFW, CFGENERAL)},
+	           	{RLSRC "rglfw", LIST(CFGLFW, CFGRAPHICS, CFGENERAL)},
+	           	{RLSRC "rmodels", LIST(CFGENERAL)},
+	           	{RLSRC "rshapes", LIST(CFGENERAL)},
+	           	{RLSRC "rtext", LIST(CFGENERAL)},
+	           	{RLSRC "rtextures", LIST(CFGENERAL)},
+	           	{RLSRC "utils", LIST(CFGENERAL)},
 
-		{RLSRC "raudio", LIST(CFGENERAL)},
-		{RLSRC "rcore", LIST(CFGLFW, CFGENERAL)},
-		{RLSRC "rglfw", LIST(CFGLFW, CFGRAPHICS, CFGENERAL)},
-		{RLSRC "rmodels", LIST(CFGENERAL)},
-		{RLSRC "rshapes", LIST(CFGENERAL)},
-		{RLSRC "rtext", LIST(CFGENERAL)},
-		{RLSRC "rtextures", LIST(CFGENERAL)},
-		{RLSRC "utils", LIST(CFGENERAL)},
-
-		{NULL}
-	};
-
-	buildfiles(files);
+	           	{NULL}
+	           });
 }
 
 int main(void) {

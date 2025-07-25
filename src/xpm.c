@@ -18,6 +18,8 @@
 #define TMPSRC TMP ".c"
 #define TMPLIB "/tmp/libxpm" DYEXT
 
+Image image;
+
 static char *strnsub(char *str, char *sub, size_t l) {
 	size_t subl;
 
@@ -138,15 +140,13 @@ static unsigned int str2color(char **strp) {
 	return r;
 }
 
-static Image parse(char **data, long *sizep) {
-	Image result;
+static void parse(char **data, long *sizep) {
 	char *p, *chars, **pp;
 	long width, height, ncolors, cpp, l;
 	unsigned int *colors, color, *pixels;
 	int i, mode, j, k, m;
 
 	// Values
-	result = (Image){0};
 	p = data[0];
 	width = strtol(p, &p, 10);
 	height = strtol(p, &p, 10);
@@ -154,7 +154,7 @@ static Image parse(char **data, long *sizep) {
 	cpp = strtol(p, &p, 10);
 	if (1 + ncolors + height > *sizep) {
 		warnx("Actual image height too short");
-		return result;
+		return;
 	}
 
 	// Colors
@@ -192,28 +192,21 @@ static Image parse(char **data, long *sizep) {
 				if (strncmp(p, chars + k * cpp, cpp) == 0)
 					for (m = 0; m < NUMMODES; ++m)
 						pixels[m * width * height + i * width + j] = colors[m * ncolors + k];
-	if (j != width || l != 0) {
-		warnx("Actual image width too narrow");
-		goto free;
-	}
-
-	result = (Image){
-		.data = pixels,
-		.width = width,
-		.height = height,
-		.mipmaps = 1,
-		.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
-	};
+	if (j != width || l != 0) warnx("Actual image width too narrow");
+	else image = (Image){
+	             	.data = pixels,
+	             	.width = width,
+	             	.height = height,
+	             	.mipmaps = 1,
+	             	.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
+	             };
 
 free:
 	free(chars);
 	free(colors);
-
-	return result;
 }
 
-static Image process(char *xpm) {
-	Image result;
+static void reloadimage(char *xpm) {
 	int xpmfd, srcfd, e, cpid, status;
 	struct stat xstat;
 	size_t l, offset;
@@ -221,10 +214,10 @@ static Image process(char *xpm) {
 	void *d;
 	long *sizep;
 
-	result = (Image){0};
+	image = (Image){0};
 	if ((xpmfd = open(xpm, O_RDONLY)) == -1) {
 		warn("Unable to open `%s'", xpm);
-		return result;
+		return;
 	}
 	if (stat(xpm, &xstat) == -1) {
 		warn("Unable to stat `%s'", xpm);
@@ -298,47 +291,48 @@ static Image process(char *xpm) {
 		goto dlclose;
 	}
 
-	result = parse(data, sizep);
+	parse(data, sizep);
 
 dlclose:
 	if (dlclose(d)) {
 		warnx("Unable to unload `%s': %s", lib, dlerror());
-		result.mipmaps = 0;
+		image.mipmaps = 0;
 	}
 
 munmap:
 	if (munmap(map, l) == -1) {
 		warn("Unable to unmap `%s' from memory", xpm);
-		result.mipmaps = 0;
+		image.mipmaps = 0;
 	}
 
 close:
 	if (close(xpmfd) == -1) {
 		warn("Unable to close `%s'", xpm);
-		result.mipmaps = 0;
+		image.mipmaps = 0;
 	}
 
-	if (result.data && !result.mipmaps) {
-		free(result.data);
-		result = (Image){0};
+	if (image.data && !image.mipmaps) {
+		free(image.data);
+		image = (Image){0};
 	}
-
-	return result;
 }
 
-Texture gettexture(char *xpm, Image *image, int mode) {
+Texture2D *reloadtexture(char *xpm, int mode) {
 	static unsigned int *base;
 	static Texture2D texture;
 
 	if (xpm) {
-		*image = process(xpm);
+		reloadimage(xpm);
 		if (base) free(base);
-		base = image->data;
+		base = image.data;
 	}
 
-	if (!base) return (Texture2D){0};
+	if (!base) return NULL;
 	
-	image->data = base + mode * image->width * image->height;
+	image.data = base + mode * image.width * image.height;
+
 	UnloadTexture(texture);
-	return texture = LoadTextureFromImage(*image);
+	texture = LoadTextureFromImage(image);
+
+	return &texture;
 }

@@ -8,4 +8,6 @@ enum {
 	DEFAULT = MODEC,
 };
 
-Texture gettexture(char *path, Image *image, int mode);
+extern Image image;
+
+Texture2D *reloadtexture(char *xpm, int mode);

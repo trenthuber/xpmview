@@ -7,6 +7,9 @@
 
 #include "cbs.h"
 
+int debug;
+char *xpm;
+
 static void usage(char *prog, int fd) {
 	dprintf(fd, "Usage: %s [-dh] [-f file]\n"
 	        "\t-d        Show debug messages\n"
@@ -22,18 +25,16 @@ static void usage(char *prog, int fd) {
 	        "\t c        Color visual mode\n", prog);
 }
 
-int options(int argc, char **argv, int *debug, char **xp) {
+int options(int argc, char **argv) {
 	int opt, result, dnfd;
 
-	*debug = 0;
-	*xp = NULL;
 	while ((opt = getopt(argc, argv, "df:h")) != -1) switch (opt) {
 	case 'd':
-		*debug = 1;
+		debug = 1;
 		break;
 	case 'f':
-		*xp = allocate(FILENAME_MAX);
-		strcpy(*xp, optarg);
+		xpm = allocate(FILENAME_MAX);
+		strcpy(xpm, optarg);
 		break;
 	case 'h':
 		usage(argv[0], STDOUT_FILENO);
@@ -45,7 +46,7 @@ int options(int argc, char **argv, int *debug, char **xp) {
 	}
 
 	result = 1;
-	if (!*debug) {
+	if (!debug) {
 		if ((dnfd = open("/dev/null", O_WRONLY)) == -1) {
 			warn("Unable to open `/dev/null'; showing debug messages");
 			return result;

@@ -1,1 +1,4 @@
-int options(int argc, char **argv, int *debug, char **pathp);
+extern int debug;
+extern char *xpm;
+
+int options(int argc, char **argv);
