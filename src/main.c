@@ -20,7 +20,7 @@ static void handleinput(void) {
 
 	if (IsFileDropped()) {
 		files = LoadDroppedFiles();
-		if (xpm) RL_FREE(xpm);
+		if (xpm) free(xpm);
 		xpm = allocate(FILENAME_MAX);
 		strcpy(xpm, files.paths[0]);
 		UnloadDroppedFiles(files);
@@ -104,8 +104,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (xpm) free(xpm);
-
-	UnloadTexture(*texture);
+	if (texture) UnloadTexture(*texture);
 	CloseWindow();
 
 	return EXIT_SUCCESS;

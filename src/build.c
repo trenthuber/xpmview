@@ -4,7 +4,14 @@
 #include "../external/cbs/cbs.c"
 #include "../external/cbsfile.c"
 
-#define CLRAYLIB LIST("-I../external/raylib/src/")
+#ifdef FONT
+#include <err.h>
+#include <stdlib.h>
+
+#include "raylib.h"
+#endif
+
+#define CFRAYLIB "-I../external/raylib/src/"
 #ifdef DYNAMICLIBS
 #define LIBEXT DYEXT
 #define LLRAYLIB NONE
@@ -16,6 +23,7 @@
 #define RLLIB "../external/raylib/raylib" LIBEXT
 #define CBSLIB "../external/cbs/cbs" LIBEXT
 
+#ifdef FONT
 static void buildcolors(void) {
 	int quit, txtfd, codefd;
 	char *txt, *code, *p;
@@ -88,28 +96,34 @@ closetxt:
 }
 
 static void buildfont(void) {
-	char **c, **l;
-	pid_t cpid;
+	char *ttf, *code;
+	Font font;
 
-	c = cflags;
-	l = lflags;
+	ttf = "../assets/font.ttf";
+	code = "font.c";
 
-	cflags = CLRAYLIB;
-	compile("buildfont");
+	SetTraceLogLevel(LOG_WARNING);
+	InitWindow(0, 0, "");
 
-	lflags = LLRAYLIB;
-	load('x', "buildfont", LIST("buildfont", RLLIB));
+	if (!ExportFontAsCode(font = LoadFontEx(ttf, 48, NULL, 95), code))
+		errx(EXIT_FAILURE, "Unable to generate `%s' from `%s'", code, ttf);
 
-	if ((cpid = fork()) == -1) err(EXIT_FAILURE, "Unable to fork");
-	else if (cpid == 0) run("buildfont", LIST("buildfont"), "run", "buildfont");
-	await(cpid, "run", "buildfont");
-
-	cflags = c;
-	lflags = l;
+	UnloadFont(font);
 }
+#endif
 
 int main(void) {
-	build("./");
+#ifndef FONT
+	cflags = LIST("-DFONT", CFRAYLIB);
+	compile("build");
+
+	lflags = LLRAYLIB;
+	load('x', "build", LIST("build", RLLIB));
+
+	run("!build", LIST("build"), "run", "build");
+#else
+	compile("build");
+	load('x', "build", LIST("build"));
 
 	buildcolors();
 	buildfont();
@@ -117,14 +131,15 @@ int main(void) {
 	buildfiles((struct cbsfile []){{"../bin/simplexpm", LLRAYLIB, 'x'},
 
 	                               {"colors", NONE},
-	                               {"main", CLRAYLIB},
+	                               {"main", LIST(CFRAYLIB)},
 	                               {"options", NONE},
-	                               {"xpm", CLRAYLIB},
+	                               {"xpm", LIST(CFRAYLIB)},
 
 	                               {CBSLIB},
 	                               {RLLIB},
 
 	                               {NULL}});
+#endif
 
 	return EXIT_SUCCESS;
 }

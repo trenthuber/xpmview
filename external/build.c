@@ -24,19 +24,10 @@
 #define RLSRC "raylib/src/"
 
 void buildcbs(void) {
-	char **c, **l;
-
-	c = cflags;
-	l = lflags;
-
 	cflags = CLPIC;
 	compile("cbs/cbs");
 
-	lflags = NONE;
 	load(LIBTYPE, "cbs/cbs", LIST("cbs/cbs"));
-
-	cflags = c;
-	lflags = l;
 }
 
 void buildraylib(void) {
