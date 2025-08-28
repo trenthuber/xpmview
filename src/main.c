@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 	if (!options(argc, argv)) return EXIT_FAILURE;
 
 	if (!debug) SetTraceLogLevel(LOG_ERROR);
-	InitWindow(800, 600, "simplexpm");
+	InitWindow(800, 600, "xpmview");
 	SetWindowState(FLAG_WINDOW_RESIZABLE);
 	SetTargetFPS(30);
 	SetExitKey(KEY_Q);

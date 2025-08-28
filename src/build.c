@@ -128,7 +128,7 @@ int main(void) {
 	buildcolors();
 	buildfont();
 
-	buildfiles((struct cbsfile []){{"../bin/simplexpm", LLRAYLIB, 'x'},
+	buildfiles((struct cbsfile []){{"../bin/xpmview", LLRAYLIB, 'x'},
 
 	                               {"colors", NONE},
 	                               {"main", LIST(CFRAYLIB)},
