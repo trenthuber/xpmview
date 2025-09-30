@@ -109,10 +109,10 @@ static unsigned int str2color(char **strp) {
 
 	l = i = 0;
 
-	// RGB
+	/* RGB */
 	if (**strp == '#') r = strtol(++*strp, strp, 16);
 
-	// Color names
+	/* Color names */
 	else for (; i < numcolors; ++i) {
 		name = colors[i].name;
 		l = strlen(name);
@@ -146,7 +146,7 @@ static void parse(char **data, long *sizep) {
 	unsigned int *colors, color, *pixels;
 	int i, mode, j, k, m;
 
-	// Values
+	/* Values */
 	p = data[0];
 	width = strtol(p, &p, 10);
 	height = strtol(p, &p, 10);
@@ -157,7 +157,7 @@ static void parse(char **data, long *sizep) {
 		return;
 	}
 
-	// Colors
+	/* Colors */
 	chars = allocate(ncolors * cpp * sizeof*chars);
 	colors = allocate(NUMMODES * ncolors * sizeof*colors);
 	for (i = 0; i < ncolors; ++i) {
@@ -178,7 +178,7 @@ static void parse(char **data, long *sizep) {
 		}
 	}
 
-	// Pixels
+	/* Pixels */
 	pixels = allocate(NUMMODES * height * width * sizeof*pixels);
 	j = width;
 	l = 0;
@@ -229,7 +229,7 @@ static void reloadimage(char *xpm) {
 		goto close;
 	}
 
-	if ((p = strnsub(map, "char", l)) == NULL) { // Skip "static" keyword
+	if ((p = strnsub(map, "char", l)) == NULL) { /* Skip "static" keyword */
 		warnx("`%s' improperly formatted", xpm);
 		goto munmap;
 	}
