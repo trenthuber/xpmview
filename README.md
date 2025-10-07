@@ -11,7 +11,7 @@ xpmview is a simple GUI application used to view XPM image files.
 > `external/build.c` to one of the other platform options (see line 32 of
 > `external/raylib/src/rglfw.c`).
 
-This repository uses [cbs](https://trenthuber.com/git/cbs.git/) as its build
+This repository uses [cbs](https://trenthuber.com/code/cbs.git/) as its build
 system, so you'll need to clone recursively.
 
 ```console
