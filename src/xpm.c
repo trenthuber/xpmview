@@ -193,13 +193,9 @@ static void parse(char **data, long *sizep) {
 					for (m = 0; m < NUMMODES; ++m)
 						pixels[m * width * height + i * width + j] = colors[m * ncolors + k];
 	if (j != width || l != 0) warnx("Actual image width too narrow");
-	else image = (Image){
-	             	.data = pixels,
-	             	.width = width,
-	             	.height = height,
-	             	.mipmaps = 1,
-	             	.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8,
-	             };
+	else image = (Image){.data = pixels, .width = width, .height = height,
+	                     .mipmaps = 1,
+	                     .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
 
 free:
 	free(chars);

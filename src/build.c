@@ -25,8 +25,8 @@
 
 #ifdef FONT
 static void buildcolors(void) {
-	int quit, txtfd, codefd;
-	char *txt, *code, *p;
+	int quit, txtfd, codefd, d;
+	char *txt, *code, *p, *decl;
 	struct stat txtstat;
 	size_t l, i;
 	void *map;
@@ -52,10 +52,11 @@ static void buildcolors(void) {
 		goto munmap;
 	}
 
+	decl = "struct color colors[] = {";
+	d = (int)strlen(decl);
 	if (dprintf(codefd, "#include <stddef.h>\n\n"
 	            "#include \"colors.h\"\n\n"
-	            "struct color colors[] = {\n"
-	            "\t{\"None\", 0x00ffffff},\n") == -1) {
+	            "%s{\"None\", 0x00ffffff},\n", decl) == -1) {
 		warn("Unable to write to `%s'", code);
 		goto closecode;
 	}
@@ -63,8 +64,8 @@ static void buildcolors(void) {
 		r = strtol(p, &p, 10);
 		g = strtol(p, &p, 10);
 		b = strtol(p, &p, 10);
-		if (dprintf(codefd, "\t{\"%s\", 0x%02x%02x%02x},\n",
-		            strsep(&p, "\n") + 2, r, g, b) == -1) {
+		if (dprintf(codefd, "%*s{\"%s\", 0x%02x%02x%02x},\n",
+		            d, "", strsep(&p, "\n") + 2, r, g, b) == -1) {
 			warn("Unable to write to `%s'", code);
 			goto closecode;
 		}
