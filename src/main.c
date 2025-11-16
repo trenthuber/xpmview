@@ -21,7 +21,7 @@ static void handleinput(void) {
 	if (IsFileDropped()) {
 		files = LoadDroppedFiles();
 		if (xpm) free(xpm);
-		xpm = allocate(FILENAME_MAX);
+		xpm = allocate(FILENAME_MAX, sizeof*xpm);
 		strcpy(xpm, files.paths[0]);
 		UnloadDroppedFiles(files);
 		texture = reloadtexture(xpm, mode);

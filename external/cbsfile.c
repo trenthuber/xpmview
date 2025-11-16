@@ -17,7 +17,7 @@ void buildfiles(struct cbsfile *files) {
 		compile(files[i].name);
 	}
 
-	names = allocate((i + 1) * sizeof *names);
+	names = allocate(i + 1, sizeof*names);
 	for (i = 0; files[i].name; ++i) names[i] = files[i].name;
 
 	lflags = target->flags;

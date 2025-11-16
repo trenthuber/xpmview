@@ -1,5 +1,5 @@
 // Rebuild with the following #define to use Raylib as a dynamic library
-// #define DYNAMICLIBS
+#define DYNAMICLIBS
 
 #ifdef __APPLE__
 #define LFRAYLIB \

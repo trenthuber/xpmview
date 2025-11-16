@@ -33,7 +33,7 @@ int options(int argc, char **argv) {
 		debug = 1;
 		break;
 	case 'f':
-		xpm = allocate(FILENAME_MAX);
+		xpm = allocate(FILENAME_MAX, sizeof*xpm);
 		strcpy(xpm, optarg);
 		break;
 	case 'h':

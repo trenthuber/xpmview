@@ -47,7 +47,7 @@ static char *arrname(char *p, size_t l) {
 	start = p;
 	for (; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
 	l = p - start;
-	r = allocate(l + 1);
+	r = allocate(l + 1, sizeof*r);
 	strncpy(r, start, l);
 
 	return r;
@@ -158,8 +158,8 @@ static void parse(char **data, long *sizep) {
 	}
 
 	/* Colors */
-	chars = allocate(ncolors * cpp * sizeof*chars);
-	colors = allocate(NUMMODES * ncolors * sizeof*colors);
+	chars = allocate(ncolors * cpp, sizeof*chars);
+	colors = allocate(NUMMODES * ncolors, sizeof*colors);
 	for (i = 0; i < ncolors; ++i) {
 		p = data[1 + i];
 		strncpy(chars + i * cpp, p, cpp);
@@ -179,7 +179,7 @@ static void parse(char **data, long *sizep) {
 	}
 
 	/* Pixels */
-	pixels = allocate(NUMMODES * height * width * sizeof*pixels);
+	pixels = allocate(NUMMODES * height * width, sizeof*pixels);
 	j = width;
 	l = 0;
 	for (i = 0, pp = &data[1 + ncolors];
