@@ -6,5 +6,5 @@ int main(void) {
 	build("external/");
 	build("src/");
 
-	return 0;
+	return EXIT_SUCCESS;
 }

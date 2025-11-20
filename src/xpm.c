@@ -32,7 +32,7 @@ static int space(char c) {
 	return c == ' ' || c == '\t';
 }
 
-static char *arrname(char *p, size_t l) {
+static char *getname(char *p, size_t l) {
 	size_t step;
 	char *start, *r;
 
@@ -44,10 +44,8 @@ static char *arrname(char *p, size_t l) {
 			break;
 	}
 
-	start = p;
-	for (; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
-	l = p - start;
-	r = allocate(l + 1, sizeof*r);
+	for (start = p; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
+	r = allocate((l = p - start) + 1, sizeof*r);
 	strncpy(r, start, l);
 
 	return r;
@@ -147,8 +145,7 @@ static void parse(char **data, long *sizep) {
 	int i, mode, j, k, m;
 
 	/* Values */
-	p = data[0];
-	width = strtol(p, &p, 10);
+	width = strtol(p = data[0], &p, 10);
 	height = strtol(p, &p, 10);
 	ncolors = strtol(p, &p, 10);
 	cpp = strtol(p, &p, 10);
@@ -161,8 +158,7 @@ static void parse(char **data, long *sizep) {
 	chars = allocate(ncolors * cpp, sizeof*chars);
 	colors = allocate(NUMMODES * ncolors, sizeof*colors);
 	for (i = 0; i < ncolors; ++i) {
-		p = data[1 + i];
-		strncpy(chars + i * cpp, p, cpp);
+		strncpy(chars + i * cpp, p = data[1 + i], cpp);
 		p += cpp;
 		while (space(*p)) ++p;
 		while (*p) switch ((mode = key2mode(&p))) {
@@ -206,7 +202,7 @@ static void reloadimage(char *xpm) {
 	int xpmfd, srcfd, e, cpid, status;
 	struct stat xstat;
 	size_t l, offset;
-	char *map, *p, *a, *src, *lib, **data;
+	char *map, *p, *name, *src, *lib, **data;
 	void *d;
 	long *sizep;
 
@@ -219,8 +215,8 @@ static void reloadimage(char *xpm) {
 		warn("Unable to stat `%s'", xpm);
 		goto close;
 	}
-	l = xstat.st_size;
-	if ((map = mmap(NULL, l, PROT_READ, MAP_PRIVATE, xpmfd, 0)) == MAP_FAILED) {
+	if ((map = mmap(NULL, l = xstat.st_size, PROT_READ, MAP_PRIVATE, xpmfd, 0))
+	    == MAP_FAILED) {
 		warn("Unable to map `%s' to memory", xpm);
 		goto close;
 	}
@@ -229,8 +225,7 @@ static void reloadimage(char *xpm) {
 		warnx("`%s' improperly formatted", xpm);
 		goto munmap;
 	}
-	offset = p - map;
-	if ((a = arrname(p + 4, l - offset - 4)) == NULL) {
+	if ((name = getname(p + 4, l - (offset = p - map) - 4)) == NULL) {
 		warnx("`%s' improperly formatted", xpm);
 		goto munmap;
 	}
@@ -241,7 +236,7 @@ static void reloadimage(char *xpm) {
 		goto munmap;
 	}
 	e = !writeall(srcfd, p, l - offset)
-	    || dprintf(srcfd, "\n\nlong size = sizeof %s / sizeof*%s;\n", a, a) < 0;
+	    || dprintf(srcfd, "\n\nlong size = sizeof %s / sizeof*%s;\n", name, name) < 0;
 	if (close(srcfd) == -1) {
 		warn("Unable to close `%s'", src);
 		goto munmap;
@@ -255,13 +250,18 @@ static void reloadimage(char *xpm) {
 	if ((cpid = fork()) == -1) {
 		warn("Unable to fork process to create `%s'", lib);
 		goto munmap;
-	} else if (cpid == 0) {
+	}
+	if (!cpid) {
 		cflags = NONE;
 		compile("/tmp/xpm");
 
 		lflags = NONE;
 		load('d', "/tmp/xpm", LIST("/tmp/xpm"));
 
+		/* I sadly didn't leave a comment when I initially wrote this part, but from
+		 * what I remember, we use `_exit()' here because Raylib registers cleanup
+		 * functions with `atexit()' that we don't want to call from the child
+		 * process. I think calling the usual `exit()' causes the child to crash. */
 		_exit(EXIT_SUCCESS);
 	}
  	if (cpid == -1 || waitpid(cpid, &status, 0) == -1) {
@@ -278,7 +278,7 @@ static void reloadimage(char *xpm) {
 		warnx("Unable to load `%s': %s", lib, dlerror());
 		goto munmap;
 	}
-	if ((data = (char **)dlsym(d, a)) == NULL) {
+	if ((data = (char **)dlsym(d, name)) == NULL) {
 		warnx("Unable to load image data from `%s': `%s'", lib, dlerror());
 		goto dlclose;
 	}
