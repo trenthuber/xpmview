@@ -33,7 +33,8 @@ int options(int argc, char **argv) {
 		debug = 1;
 		break;
 	case 'f':
-		xpm = allocate(FILENAME_MAX, sizeof*xpm);
+		if (!(xpm = calloc(FILENAME_MAX, sizeof*xpm)))
+			err(EXIT_FAILURE, "Memory allocation");
 		strcpy(xpm, optarg);
 		break;
 	case 'h':

@@ -17,7 +17,8 @@ void buildfiles(struct cbsfile *files) {
 		compile(files[i].name);
 	}
 
-	names = allocate(i + 1, sizeof*names);
+	if (!(names = calloc(i + 1, sizeof*names)))
+		err(EXIT_FAILURE, "Memory allocation");
 	for (i = 0; files[i].name; ++i) names[i] = files[i].name;
 
 	lflags = target->flags;

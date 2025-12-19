@@ -45,7 +45,8 @@ static char *getname(char *p, size_t l) {
 	}
 
 	for (start = p; !space(*p) && *p != '['; ++p, --l) if (l == 0) return NULL;
-	r = allocate((l = p - start) + 1, sizeof*r);
+	if (!(r = calloc((l = p - start) + 1, sizeof*r)))
+		err(EXIT_FAILURE, "Memory allocation");
 	strncpy(r, start, l);
 
 	return r;
@@ -155,8 +156,9 @@ static void parse(char **data, long *sizep) {
 	}
 
 	/* Colors */
-	chars = allocate(ncolors * cpp, sizeof*chars);
-	colors = allocate(NUMMODES * ncolors, sizeof*colors);
+	if (!(chars = calloc(ncolors * cpp, sizeof*chars))
+	    || !(colors = calloc(NUMMODES * ncolors, sizeof*colors)))
+		err(EXIT_FAILURE, "Memory allocation");
 	for (i = 0; i < ncolors; ++i) {
 		strncpy(chars + i * cpp, p = data[1 + i], cpp);
 		p += cpp;
@@ -175,7 +177,8 @@ static void parse(char **data, long *sizep) {
 	}
 
 	/* Pixels */
-	pixels = allocate(NUMMODES * height * width, sizeof*pixels);
+	if (!(pixels = calloc(NUMMODES * height * width, sizeof*pixels)))
+		err(EXIT_FAILURE, "Memory allocation");
 	j = width;
 	l = 0;
 	for (i = 0, pp = &data[1 + ncolors];

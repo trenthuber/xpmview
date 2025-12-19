@@ -1,3 +1,4 @@
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,7 +22,8 @@ static void handleinput(void) {
 	if (IsFileDropped()) {
 		files = LoadDroppedFiles();
 		if (xpm) free(xpm);
-		xpm = allocate(FILENAME_MAX, sizeof*xpm);
+		if (!(xpm = calloc(FILENAME_MAX, sizeof*xpm)))
+			err(EXIT_FAILURE, "Memory allocation");
 		strcpy(xpm, files.paths[0]);
 		UnloadDroppedFiles(files);
 		texture = reloadtexture(xpm, mode);
